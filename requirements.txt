@@ -1,0 +1,6 @@
+pandas
+matplotlib
+numpy
+skyfield
+dotenv
+requests

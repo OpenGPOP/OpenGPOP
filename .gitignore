@@ -1,0 +1,14 @@
+build
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+
+out.csv
+.venv
+.cache
+
+.idea/*
+
+.env
+
+sofa

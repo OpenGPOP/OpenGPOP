@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "GPU Debug",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/exec/exec",
+            "cwd": "${workspaceFolder}/build/exec",
+            "preLaunchTask": "Build Exec"
+        },
+        {
+            "name": "Unit Tests Debug",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/unit_tests/unit_tests",
+            "cwd": "${workspaceFolder}/build/unit_tests",
+            "preLaunchTask": "Build Unit Tests"
+        },
+        {
+            "name": "Accuracy tests",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/accuracy_tests/accuracy_tests",
+            "cwd": "${workspaceFolder}/build/accuracy_tests",
+            "preLaunchTask": "Build accuracy tests"
+        }
+    ]
+}
