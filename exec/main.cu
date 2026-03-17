@@ -68,7 +68,7 @@ int main()
 
     const int numSteps = 50;
 
-    MonteCarlo monteCarlo(
+    ClosestApproach monteCarlo(
         &handle, &params, positions, velocities, numSatellites, 120.0, numSteps, 10.0);
 
     monteCarlo.CoarsePropagationPhase();
