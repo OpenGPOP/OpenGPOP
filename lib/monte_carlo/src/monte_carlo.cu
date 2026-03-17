@@ -1,5 +1,8 @@
+#include "force_model/force_model.cuh"
+#include "gpu_propagator/gpu_propagator.cuh"
 #include "gpu_utils/gpu_utils.cuh"
 #include "monte_carlo/monte_carlo.cuh"
+#include "monte_carlo/utility.cuh"
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -61,16 +64,15 @@ void ClosestApproach::Initialize(std::vector<double>& positions, std::vector<dou
         cudaMemcpyHostToDevice));
 
     // Allocate memory for results
-    gpuErrchk(cudaMalloc(&_devClosestDistances, sizeof(double) * _partitionParams.pairNum));
-    gpuErrchk(cudaMalloc(&_devClosestSteps, sizeof(int) * _partitionParams.pairNum));
+    _approachStates.cudaAllocate(_partitionParams.pairNum);
 
     // Initialize the closest distances to double max and closest steps to -1
     std::vector<double> closestDistancesHost(
         _partitionParams.pairNum, std::numeric_limits<double>::max());
     std::vector<int> closestStepsHost(_partitionParams.pairNum, -1);
-    gpuErrchk(cudaMemcpy(_devClosestDistances, closestDistancesHost.data(),
+    gpuErrchk(cudaMemcpy(_approachStates.closestDistances, closestDistancesHost.data(),
         sizeof(double) * _partitionParams.pairNum, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(_devClosestSteps, closestStepsHost.data(),
+    gpuErrchk(cudaMemcpy(_approachStates.closestSteps, closestStepsHost.data(),
         sizeof(int) * _partitionParams.pairNum, cudaMemcpyHostToDevice));
 
     // Allocate memory for acceleration vectors
@@ -80,8 +82,24 @@ void ClosestApproach::Initialize(std::vector<double>& positions, std::vector<dou
 void ClosestApproach::Propagate(double stepSize, int numSteps)
 {
     assert(_numEntities != 0); // Ensure initialized
-    assert(stepSize > 0); // Ensure positive step size
-    assert(numSteps > 0); // Ensure positive number of steps
+    assert(stepSize > 0);
+    assert(numSteps > 0);
+
+    ForceModel forceModel { _cublasHandle, _numEntities, stepSize, _params };
+    GpuPropagator propagator(_devPositions, _devVelocities, _numEntities, _cublasHandle, stepSize,
+        _params, forceModel, numSteps);
+
+    for (int step = 0; step < numSteps; step++) {
+        propagator.Step(nullptr, nullptr, _devAccelerations);
+
+        int threadsPerBlock = 256;
+        int blockCount = _partitionParams.pairNum / threadsPerBlock + 1;
+        UpdateClosestApproachKernel<<<blockCount, threadsPerBlock>>>(_partitionParams,
+            _devPositions, _devVelocities, _devAccelerations, _devLastPositions, _devLastVelocities,
+            _devLastAccelerations, _approachStates, step);
+        gpuErrchk(cudaGetLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+    }
 }
 
 int ClosestApproach::CollectResults(double distanceThreshold, double* hostClosestDistances)

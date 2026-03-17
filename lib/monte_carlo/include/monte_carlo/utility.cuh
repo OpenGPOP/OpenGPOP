@@ -1,35 +1,9 @@
 #pragma once
 
+#include "monte_carlo/types.cuh"
 #include <cstring>
 #include <vector>
 
-struct PartitionParameters {
-    unsigned setNum; // Number of sets
-    unsigned pairNum; // Number of pairs
-
-    unsigned* setIds = nullptr;
-
-    // Offsets of the beginnings of each set in the setIds array
-    // e.g.
-    // setIds     = [ 0 0 0 1 1 2 2 2 3 3 ]
-    // setOffsets = [ 0 3 5 8 ]
-    unsigned* setOffsets = nullptr;
-
-    // The number of elements with higher setIds
-    // e.g.
-    // setIds       = [ 0 0 0 1 1 2 2 2 3 3 ]
-    // numHigherIds = [ 7 5 2 0 ]
-    unsigned* numHigherIds = nullptr;
-
-    // Offsets of the beginnings of each set in the partition map array.
-    // Equivalent to exclusive cummulation of setSize[set] * numHigherIds[set]
-    // e.g.
-    // setIds       = [ 0 0 0 1 1 2 2 2 3 3 ]
-    // setSize      = [ 3  2  3  2  ]
-    // numHigherIds = [ 7  5  2  0  ]
-    // mapOffsets   = [ 0  21 31 37 ]
-    unsigned* mapOffsets = nullptr;
-};
 
 __host__ __device__ int GetPartitionMapIdx(PartitionParameters params, unsigned idxA, unsigned idxB)
 {

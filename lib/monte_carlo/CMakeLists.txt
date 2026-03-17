@@ -10,6 +10,7 @@ target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-rdc=true>)
 
 target_sources(${NAME} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/monte_carlo.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/device.cu
 )
 
 target_include_directories(${NAME}

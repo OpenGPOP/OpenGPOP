@@ -1,11 +1,15 @@
 #pragma once
 
 #include "cublas_v2.h"
-#include "monte_carlo/utility.cuh"
+#include "monte_carlo/types.cuh"
 #include "types/Parameters.hpp"
 #include <cassert>
 #include <cuda_runtime.h>
 #include <vector>
+
+__global__ void UpdateClosestApproachKernel(PartitionParameters partitionParams, double* pos,
+    double* vel, double* acc, double* lastPos, double* lastVel, double* lastAcc,
+    ApproachParameters ap, unsigned stepNum);
 
 class ClosestApproach {
 public:
@@ -39,8 +43,10 @@ private:
     double* _devPositions;
     double* _devVelocities;
     double* _devAccelerations;
-    PartitionParameters _partitionParams;
+    double* _devLastPositions;
+    double* _devLastVelocities;
+    double* _devLastAccelerations;
 
-    double* _devClosestDistances;
-    int* _devClosestSteps;
+    PartitionParameters _partitionParams;
+    ApproachParameters _approachStates;
 };

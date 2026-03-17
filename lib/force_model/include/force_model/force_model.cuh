@@ -11,7 +11,7 @@
 
 class ForceModel : public IForceModel {
 public:
-    ForceModel(cublasHandle_t* handle, int numEntities, double stepSize,
+    ForceModel(cublasHandle_t* handle, unsigned numEntities, double stepSize,
         FullPerturbationParameters* params)
         : _handle(handle)
         , _params(params)
@@ -58,7 +58,7 @@ public:
 private:
     cublasHandle_t* _handle;
     FullPerturbationParameters* _params;
-    int _numEntities;
+    unsigned _numEntities;
     double _stepSize;
 
     // Matrices used to store acceleration from different sources, which are then summed
