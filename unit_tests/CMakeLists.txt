@@ -30,6 +30,8 @@ target_sources(${NAME} PRIVATE
         integrator_test.cu
         startup_test.cu
         startup_correction_test.cu
+        propagator_test.cu
+        force_model_test.cu
         fm_ref_sys_trans_test.cu
         fm_time_points_test.cu
         main.cu

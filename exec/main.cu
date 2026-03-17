@@ -17,10 +17,12 @@ int main()
     cublasHandle_t handle;
     cublasErrchk(cublasCreate(&handle));
 
-    double epochPositionHost[3]
-        = { 2859170.4190420364, -6331556.7306755139, 14718.591153407715 }; // [m]
-    double epochVelocityHost[3]
-        = { -900.03288638945071, -378.6757130492515, 7512.6936320553532 }; // [m/s]
+    double epochPositionHost[3] = { -3884872, -5749111, 14723 }; // [m]
+    double epochVelocityHost[3] = {
+        -795.304,
+        573.772,
+        7518.179,
+    }; // [m/s]
 
     double objectPositionHost[3] = { 7378137, 0, 0 };
     double objectVelocityHost[3] = { 0, 7350.13862961, 0 };
@@ -28,7 +30,7 @@ int main()
     PerturbationGenerator perturbationGenerator(epochPositionHost, epochVelocityHost);
     const int numSatellites = 8;
     auto [positions, velocities] = perturbationGenerator.generatePerturbedSatellites(
-        numSatellites, 1, objectPositionHost, objectVelocityHost);
+        numSatellites, 0.1, objectPositionHost, objectVelocityHost);
 
     double* positionsHost = new double[numSatellites * 3];
     double* velocitiesHost = new double[numSatellites * 3];

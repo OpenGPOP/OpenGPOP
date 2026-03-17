@@ -79,7 +79,7 @@ void ForceModel::ComputePropagationAcceleration(double* devPosition, double* dev
     auto sourcesNum = _accelerationSources.size();
     for (const auto& source : _accelerationSources) {
         source->ComputeAcceleration(
-            devPosition, devVelocity, stepNum, devSumTempPointer, sourcesNum * 3);
+            devPosition, devVelocity, stepNum, devSumTempPointer, sourcesNum);
         devSumTempPointer += 3;
     }
 

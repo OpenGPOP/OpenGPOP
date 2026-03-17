@@ -227,6 +227,7 @@ StartupCorrector::StartupCorrector(cublasHandle_t* cublasHandle, double timeStep
 
     CalculateAccelerationMatrix(true);
 }
+
 void StartupCorrector::Correct()
 {
     // Step 3.(a)

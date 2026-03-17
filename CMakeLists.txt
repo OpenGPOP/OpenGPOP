@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(smallsat-cuda LANGUAGES CXX)
+project(OpenGPOP LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_BUILD_TYPE Debug)
@@ -14,29 +14,29 @@ find_package(CUDAToolkit REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(
-  googletest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG        v1.14.0
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.14.0
 )
 FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
 set(SOFA_DIR "${CMAKE_SOURCE_DIR}/unit_tests/sofa")
-if(NOT EXISTS "${SOFA_DIR}")
+if (NOT EXISTS "${SOFA_DIR}")
     set(SOFA_TAR_URL "https://www.iausofa.org/s/sofa_c-20231011tar.gz")
     set(SOFA_TAR_PATH "${CMAKE_BINARY_DIR}/sofa_temp.tar.gz")
     set(SOFA_EXTRACT_DIR "${CMAKE_BINARY_DIR}/sofa_extract")
 
     message(STATUS "Downloading IAU SOFA library...")
     file(DOWNLOAD "${SOFA_TAR_URL}" "${SOFA_TAR_PATH}" STATUS DL_STATUS)
-    
+
     # Check if download was successful
     list(GET DL_STATUS 0 DL_STATUS_CODE)
-    if(NOT DL_STATUS_CODE EQUAL 0)
+    if (NOT DL_STATUS_CODE EQUAL 0)
         list(GET DL_STATUS 1 DL_ERROR_MSG)
         message(FATAL_ERROR "Failed to download SOFA: ${DL_ERROR_MSG}")
-    endif()
+    endif ()
 
     message(STATUS "Extracting IAU SOFA library...")
     file(MAKE_DIRECTORY "${SOFA_EXTRACT_DIR}")
@@ -53,30 +53,30 @@ if(NOT EXISTS "${SOFA_DIR}")
     # Run make inside sofa/src
     message(STATUS "Building SOFA library via make...")
     execute_process(
-        COMMAND make
-        WORKING_DIRECTORY "${SOFA_DIR}/src"
-        RESULT_VARIABLE MAKE_RESULT
+            COMMAND make
+            WORKING_DIRECTORY "${SOFA_DIR}/src"
+            RESULT_VARIABLE MAKE_RESULT
     )
-    
-    if(NOT MAKE_RESULT EQUAL 0)
+
+    if (NOT MAKE_RESULT EQUAL 0)
         message(FATAL_ERROR "Failed to build SOFA library (make returned ${MAKE_RESULT}).")
-    endif()
+    endif ()
 
     execute_process(
-        COMMAND make check
-        WORKING_DIRECTORY "${SOFA_DIR}/src"
-        RESULT_VARIABLE MAKE_RESULT
+            COMMAND make check
+            WORKING_DIRECTORY "${SOFA_DIR}/src"
+            RESULT_VARIABLE MAKE_RESULT
     )
-    
-    if(NOT MAKE_RESULT EQUAL 0)
+
+    if (NOT MAKE_RESULT EQUAL 0)
         message(FATAL_ERROR "Failed to test SOFA library (make check returned ${MAKE_RESULT}).")
-    endif()
+    endif ()
     message(STATUS "SOFA library built and validated successfully.")
-endif()
+endif ()
 
 add_library(sofa STATIC IMPORTED)
-set_target_properties(sofa PROPERTIES 
-    IMPORTED_LOCATION "${SOFA_DIR}/src/libsofa_c.a"
+set_target_properties(sofa PROPERTIES
+        IMPORTED_LOCATION "${SOFA_DIR}/src/libsofa_c.a"
 )
 target_include_directories(sofa INTERFACE "${SOFA_DIR}/src")
 
