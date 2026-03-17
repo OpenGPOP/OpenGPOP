@@ -51,3 +51,16 @@ __global__ void FinalizeCorrectionKernel(double* positions, double* velocities,
                 + bigS[idx * 3 + i]);
     }
 }
+
+__global__ void MoveColumnToVectorKernel(
+    double* matrix, double* vector, int columnIndex, uint numSatellites)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= numSatellites) {
+        return;
+    }
+#pragma unroll
+    for (int i = 0; i < 3; ++i) {
+        vector[3 * idx + i] = matrix[3 * 9 * idx + columnIndex * 3 + i];
+    }
+}

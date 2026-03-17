@@ -35,7 +35,8 @@ public:
         cublasHandle_t* cublasHandle, double timeStep, FullPerturbationParameters* params,
         IForceModel& forceModel, int maxSteps, int numCorrections = 7);
 
-    void Step(double* hostPositions, double* hostVelocities);
+    void Step(double* hostPositions = nullptr, double* hostVelocities = nullptr,
+        double* devAccelerationVector = nullptr);
     void FreeAllMemory();
     ~GpuPropagator();
 };

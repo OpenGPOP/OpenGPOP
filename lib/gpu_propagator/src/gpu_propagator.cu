@@ -9,7 +9,8 @@
 #include <cstdlib>
 #include <cublas_v2.h>
 
-void GpuPropagator::Step(double* hostPositions, double* hostVelocities)
+void GpuPropagator::Step(
+    double* hostPositions, double* hostVelocities, double* devAccelerationVector)
 {
     if (_stepNumber == 1) {
         _startupData = _startup.Startup();
@@ -34,22 +35,28 @@ void GpuPropagator::Step(double* hostPositions, double* hostVelocities)
             _numSatellites);
         gpuErrchk(cudaGetLastError());
         gpuErrchk(cudaDeviceSynchronize());
-        gpuErrchk(cudaMemcpy(hostPositions, _positions, _numSatellites * 3 * sizeof(double),
-            cudaMemcpyDeviceToHost));
-        gpuErrchk(cudaMemcpy(hostVelocities, _velocities, _numSatellites * 3 * sizeof(double),
-            cudaMemcpyDeviceToHost));
-        gpuErrchk(cudaDeviceSynchronize());
     } else {
         _predictor.Predict(_stepNumber);
         Correct();
         gpuErrchk(cudaGetLastError());
         gpuErrchk(cudaDeviceSynchronize());
+    }
+    if (hostPositions != nullptr) {
         gpuErrchk(cudaMemcpy(hostPositions, _positions, _numSatellites * 3 * sizeof(double),
             cudaMemcpyDeviceToHost));
+    }
+    if (hostVelocities != nullptr) {
         gpuErrchk(cudaMemcpy(hostVelocities, _velocities, _numSatellites * 3 * sizeof(double),
             cudaMemcpyDeviceToHost));
-        gpuErrchk(cudaDeviceSynchronize());
     }
+    if (devAccelerationVector != nullptr) {
+
+        MoveColumnToVectorKernel<<<(_numSatellites + 255) / 256, 256>>>(
+            _startupData.devAccelerationMatrix, devAccelerationVector, 8, _numSatellites);
+    }
+
+    gpuErrchk(cudaDeviceSynchronize());
+
     _stepNumber++;
 }
 
