@@ -7,7 +7,14 @@ add_custom_target(${NAME}.run
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/${NAME}/"
         DEPENDS ${NAME}
         USES_TERMINAL
-        COMMENT "Running on GPU..."
+        COMMENT "Running GPU executable..."
+)
+
+add_custom_target(${NAME}.memcheck
+        COMMAND compute-sanitizer --leak-check full "${CMAKE_BINARY_DIR}/${NAME}/${NAME}"
+        DEPENDS ${NAME}
+        USES_TERMINAL
+        COMMENT "Running GPU executable with compute sanitizer..."
 )
 
 target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
@@ -26,5 +33,5 @@ target_link_libraries(${NAME}
         perturbation_generator
         gpu_startup
         gpu_propagator
-        monte_carlo
+        closest_approach
 )

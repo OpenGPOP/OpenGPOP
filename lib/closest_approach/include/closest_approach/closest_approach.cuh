@@ -23,8 +23,8 @@ public:
         IForceModel& forceModel, double stepSize)
         : _cublasHandle(cublasHandle)
         , _params(params)
-        , _forceModel(forceModel)
         , _stepSize(stepSize)
+        , _forceModel(forceModel)
     {
         assert(stepSize > 0);
     }
