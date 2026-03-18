@@ -54,7 +54,7 @@ void doWork()
     std::cout << "The heap size limit is: " << limit << std::endl;
 
     const int numSteps = 10;
-    const double stepSize = 30.0; // [s]
+    const double stepSize = 30.0;
 
     ForceModel forceModel(&handle, numSatellites, 1.0, &params);
     ClosestApproach closestApproach(&handle, &params, forceModel, stepSize);
@@ -64,24 +64,24 @@ void doWork()
     std::vector<double> velocitiesVec(velocitiesHost, velocitiesHost + numSatellites * 3);
     std::vector<unsigned int> setIndicesVec(numSatellites);
     for (int i = 0; i < numSatellites; ++i) {
-        setIndicesVec[i] = i / 4; // Group satellites in sets of 4 (0-3 in set 0, 4-7 in set 1)
+        setIndicesVec[i] = i / 4; // Group satellites in sets of 4
     }
     closestApproach.Initialize(positionsVec, velocitiesVec, setIndicesVec);
 
-    closestApproach.Propagate(numSteps);
+    closestApproach.Propagate(numSteps, true);
     ClosestApproachData data;
     closestApproach.FindClosest(data);
 
-    // Print distances and times for pairs 0-4, 0-5, 1-4, 1-5 as examples
-    std::cout << "Closest approaches:\n";
-    std::cout << "Pair 0-4: Distance = " << data.Get(0, 4).distance
-              << " m, Time = " << data.Get(0, 4).time << " s\n";
-    std::cout << "Pair 0-5: Distance = " << data.Get(0, 5).distance
-              << " m, Time = " << data.Get(0, 5).time << " s\n";
-    std::cout << "Pair 1-4: Distance = " << data.Get(1, 4).distance
-              << " m, Time = " << data.Get(1, 4).time << " s\n";
-    std::cout << "Pair 1-5: Distance = " << data.Get(1, 5).distance
-              << " m, Time = " << data.Get(1, 5).time << " s\n";
+    // Iterate through all possible pairs
+    for (int i = 0; i < numSatellites; ++i) {
+        for (int j = i + 1; j < numSatellites; ++j) {
+            // Only print pairs that belong to different sets
+            if (setIndicesVec[i] != setIndicesVec[j]) {
+                std::cout << "Pair " << i << "-" << j << ": Distance = " << data.Get(i, j).distance
+                          << " m, Time = " << data.Get(i, j).time << " s\n";
+            }
+        }
+    }
 
     cudaFree(positions);
     cudaFree(velocities);

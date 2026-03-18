@@ -41,7 +41,7 @@ __global__ void UpdateClosestApproachKernel(PartitionParameters partitionParams,
     ApproachParameters ap, unsigned stepNum)
 {
     auto idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= partitionParams.pairNum)
+    if (idx >= partitionParams.numPairs)
         return;
 
     unsigned idxA, idxB;
@@ -77,7 +77,7 @@ __global__ void CalculateClosestApproachesKernel(PartitionParameters partParams,
     ApproachParameters appParams, double stepSize, unsigned totalSteps, double* closestTimes)
 {
     auto idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= partParams.pairNum)
+    if (idx >= partParams.numPairs)
         return;
 
     // Check if first/last step was closest

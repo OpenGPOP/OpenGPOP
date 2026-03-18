@@ -39,7 +39,7 @@ public:
 
     // Propagates the objects for the specified number of steps with the given step size. On
     // subsequent calls, the propagation will continue from the last state.
-    void Propagate(int numSteps);
+    void Propagate(int numSteps, bool verbose = false);
 
     // The function finds the number of satellites that are closer than the given distance. If
     // hostClosestDistances is provided, it will be filled with the distances. When called after

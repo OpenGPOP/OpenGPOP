@@ -16,12 +16,12 @@ TEST(MonteCarloUtilsTest, PartitionTest_ParameterCalculation)
     PartitionParameters params;
     EXPECT_TRUE(params.Calculate(setIds));
 
-    ASSERT_EQ(params.setNum, 4u);
+    ASSERT_EQ(params.numSets, 4u);
     unsigned expected_setOffsets[] = { 0, 3, 5, 8 };
     unsigned expected_numHigherIds[] = { 7, 5, 2, 0 };
     unsigned expected_mapOffsets[] = { 0, 21, 31, 37 };
 
-    for (unsigned i = 0; i < params.setNum; ++i) {
+    for (unsigned i = 0; i < params.numSets; ++i) {
         EXPECT_EQ(params.setOffsets[i], expected_setOffsets[i]);
         EXPECT_EQ(params.numHigherIds[i], expected_numHigherIds[i]);
         EXPECT_EQ(params.mapOffsets[i], expected_mapOffsets[i]);
@@ -87,8 +87,8 @@ TEST(MonteCarloUtilsTest, PartitionTest_OneSetNoPairs)
     EXPECT_TRUE(params.Calculate(setIds));
     params.setIds = setIds.data();
 
-    EXPECT_EQ(params.setNum, 1u);
-    EXPECT_EQ(params.pairNum, 0u);
+    EXPECT_EQ(params.numSets, 1u);
+    EXPECT_EQ(params.numPairs, 0u);
     EXPECT_EQ(params.setOffsets[0], 0u);
     EXPECT_EQ(params.numHigherIds[0], 0u);
     EXPECT_EQ(params.mapOffsets[0], 0u);

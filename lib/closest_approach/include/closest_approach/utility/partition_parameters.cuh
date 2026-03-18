@@ -4,8 +4,8 @@
 #include <vector>
 
 struct PartitionParameters {
-    unsigned setNum; // Number of sets
-    unsigned pairNum; // Number of pairs
+    unsigned numSets;
+    unsigned numPairs;
 
     unsigned* setIds = nullptr;
 
@@ -39,7 +39,7 @@ struct PartitionParameters {
         }
 
         auto setA = setIds[idxA];
-        if (setA == setNum - 1)
+        if (setA == numSets - 1)
             return -1;
 
         int offset1 = (int)idxB - (int)setOffsets[setA + 1];
@@ -56,9 +56,9 @@ struct PartitionParameters {
     {
         // Find the A set (it cannot be the last one)
         unsigned setA = 0;
-        while (setA < setNum - 1 && mapOffsets[setA + 1] <= idx)
+        while (setA < numSets - 1 && mapOffsets[setA + 1] <= idx)
             setA++;
-        if (setA >= setNum - 1) {
+        if (setA >= numSets - 1) {
             return false;
         }
 
@@ -104,16 +104,16 @@ struct PartitionParameters {
         sizes.push_back(setIds.size() - prevChangeIdx);
         numHigherIds.push_back(0);
 
-        this->setNum = static_cast<unsigned>(setOffsets.size());
-        this->pairNum = mapOffsets.back();
+        this->numSets = static_cast<unsigned>(setOffsets.size());
+        this->numPairs = mapOffsets.back();
         this->setIds = new unsigned[setIds.size()];
-        this->setOffsets = new unsigned[this->setNum];
-        this->numHigherIds = new unsigned[this->setNum];
-        this->mapOffsets = new unsigned[this->setNum];
+        this->setOffsets = new unsigned[this->numSets];
+        this->numHigherIds = new unsigned[this->numSets];
+        this->mapOffsets = new unsigned[this->numSets];
         std::memcpy(this->setIds, setIds.data(), setIds.size() * sizeof(unsigned));
-        std::memcpy(this->setOffsets, setOffsets.data(), this->setNum * sizeof(unsigned));
-        std::memcpy(this->numHigherIds, numHigherIds.data(), this->setNum * sizeof(unsigned));
-        std::memcpy(this->mapOffsets, mapOffsets.data(), this->setNum * sizeof(unsigned));
+        std::memcpy(this->setOffsets, setOffsets.data(), this->numSets * sizeof(unsigned));
+        std::memcpy(this->numHigherIds, numHigherIds.data(), this->numSets * sizeof(unsigned));
+        std::memcpy(this->mapOffsets, mapOffsets.data(), this->numSets * sizeof(unsigned));
         return true;
     }
 
