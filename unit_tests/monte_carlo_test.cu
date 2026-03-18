@@ -285,3 +285,131 @@ TEST_F(ClosestApproachTest, DetectsClosestAndAfterStates)
     EXPECT_DOUBLE_EQ(fetchDeviceDouble(d_lastPos, 0), -1.0);
     EXPECT_DOUBLE_EQ(fetchDeviceDouble(d_lastPos, 3), 13.0);
 }
+
+TEST(HermitePolynomialTest, ConstantPosition)
+{
+    double dt = 1.0;
+    HermitePolynomial poly(5.0, 0.0, 0.0, // t = 0
+        5.0, 0.0, 0.0, // t = 1
+        5.0, 0.0, 0.0, // t = 2
+        dt);
+
+    EXPECT_DOUBLE_EQ(poly.coeffs[0], 5.0);
+    for (int i = 1; i < 9; ++i) {
+        EXPECT_DOUBLE_EQ(poly.coeffs[i], 0.0);
+    }
+
+    EXPECT_DOUBLE_EQ(poly(0.0), 5.0);
+    EXPECT_DOUBLE_EQ(poly(0.5), 5.0);
+    EXPECT_DOUBLE_EQ(poly(1.0), 5.0);
+    EXPECT_DOUBLE_EQ(poly(1.5), 5.0);
+    EXPECT_DOUBLE_EQ(poly(2.0), 5.0);
+
+    EXPECT_DOUBLE_EQ(poly.deriv(0.0), 0.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(0.5), 0.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(1.0), 0.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(1.5), 0.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(2.0), 0.0);
+}
+
+TEST(HermitePolynomialTest, LinearFunction)
+{
+    double dt = 1.0;
+    // f(t) = 2t + 1  =>  f'(t) = 2
+    HermitePolynomial poly(1.0, 2.0, 0.0, // t = 0
+        3.0, 2.0, 0.0, // t = 1
+        5.0, 2.0, 0.0, // t = 2
+        dt);
+
+    EXPECT_DOUBLE_EQ(poly.coeffs[0], 1.0);
+    EXPECT_DOUBLE_EQ(poly.coeffs[1], 2.0);
+    for (int i = 2; i < 9; ++i) {
+        EXPECT_DOUBLE_EQ(poly.coeffs[i], 0.0);
+    }
+
+    EXPECT_DOUBLE_EQ(poly(0.0), 1.0);
+    EXPECT_DOUBLE_EQ(poly(0.5), 2.0);
+    EXPECT_DOUBLE_EQ(poly(1.0), 3.0);
+    EXPECT_DOUBLE_EQ(poly(1.5), 4.0);
+    EXPECT_DOUBLE_EQ(poly(2.0), 5.0);
+
+    EXPECT_DOUBLE_EQ(poly.deriv(0.0), 2.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(0.5), 2.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(1.0), 2.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(1.5), 2.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(2.0), 2.0);
+}
+
+TEST(HermitePolynomialTest, QuadraticFunction)
+{
+    double dt = 2.0;
+    // f(t) = t^2  =>  f'(t) = 2t
+    HermitePolynomial poly(0.0, 0.0, 2.0, // t = 0
+        4.0, 4.0, 2.0, // t = 2
+        16.0, 8.0, 2.0, // t = 4
+        dt);
+
+    EXPECT_DOUBLE_EQ(poly.coeffs[0], 0.0);
+    EXPECT_DOUBLE_EQ(poly.coeffs[1], 0.0);
+    EXPECT_DOUBLE_EQ(poly.coeffs[2], 1.0);
+    for (int i = 3; i < 9; ++i) {
+        EXPECT_DOUBLE_EQ(poly.coeffs[i], 0.0);
+    }
+
+    EXPECT_DOUBLE_EQ(poly(1.0), 1.0);
+    EXPECT_DOUBLE_EQ(poly(2.0), 4.0);
+    EXPECT_DOUBLE_EQ(poly(3.0), 9.0);
+
+    EXPECT_DOUBLE_EQ(poly.deriv(1.0), 2.0); // 2 * 1
+    EXPECT_DOUBLE_EQ(poly.deriv(2.0), 4.0); // 2 * 2
+    EXPECT_DOUBLE_EQ(poly.deriv(3.0), 6.0); // 2 * 3
+}
+
+TEST(HermitePolynomialTest, MatchesConstraintsAtNodes)
+{
+    double dt = 1.0;
+    // f(t) = t^3 - t => f'(t) = 3t^2 - 1
+    HermitePolynomial poly(0.0, -1.0, 0.0, // t = 0
+        0.0, 2.0, 6.0, // t = 1
+        6.0, 11.0, 12.0, // t = 2
+        dt);
+
+    // Coefficients for f(t) = 0 - 1*t + 0*t^2 + 1*t^3
+    EXPECT_DOUBLE_EQ(poly.coeffs[0], 0.0);
+    EXPECT_DOUBLE_EQ(poly.coeffs[1], -1.0);
+    EXPECT_DOUBLE_EQ(poly.coeffs[2], 0.0);
+    EXPECT_DOUBLE_EQ(poly.coeffs[3], 1.0);
+    for (int i = 4; i < 9; ++i) {
+        EXPECT_DOUBLE_EQ(poly.coeffs[i], 0.0);
+    }
+
+    EXPECT_DOUBLE_EQ(poly(0.0), 0.0);
+    EXPECT_DOUBLE_EQ(poly(1.0), 0.0);
+    EXPECT_DOUBLE_EQ(poly(2.0), 6.0);
+    EXPECT_DOUBLE_EQ(poly(0.5), -0.375);
+
+    EXPECT_DOUBLE_EQ(poly.deriv(0.0), -1.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(1.0), 2.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(2.0), 11.0);
+    EXPECT_DOUBLE_EQ(poly.deriv(0.5), -0.25);
+}
+
+TEST(HermitePolynomialTest, ExtrapolationBehavesAsExpected)
+{
+    double dt = 1.0;
+    // f(t) = t^2 => f'(t) = 2t
+    HermitePolynomial poly(0.0, 0.0, 2.0, 1.0, 2.0, 2.0, 4.0, 4.0, 2.0, dt);
+
+    EXPECT_DOUBLE_EQ(poly.coeffs[0], 0.0);
+    EXPECT_DOUBLE_EQ(poly.coeffs[1], 0.0);
+    EXPECT_DOUBLE_EQ(poly.coeffs[2], 1.0);
+    for (int i = 3; i < 9; ++i) {
+        EXPECT_DOUBLE_EQ(poly.coeffs[i], 0.0);
+    }
+
+    EXPECT_DOUBLE_EQ(poly(-1.0), 1.0);
+    EXPECT_DOUBLE_EQ(poly(3.0), 9.0);
+
+    EXPECT_DOUBLE_EQ(poly.deriv(-1.0), -2.0); // 2 * (-1)
+    EXPECT_DOUBLE_EQ(poly.deriv(3.0), 6.0); // 2 * 3
+}
