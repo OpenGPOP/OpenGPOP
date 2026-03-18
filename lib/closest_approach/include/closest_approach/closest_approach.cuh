@@ -1,8 +1,8 @@
 #pragma once
 
+#include "closest_approach/types.cuh"
+#include "closest_approach/utility/partition_parameters.cuh"
 #include "cublas_v2.h"
-#include "monte_carlo/types.cuh"
-#include "monte_carlo/utility.cuh"
 #include "types/Parameters.hpp"
 #include <cassert>
 #include <cstdlib>
@@ -16,57 +16,9 @@ __global__ void UpdateClosestApproachKernel(PartitionParameters partitionParams,
 __global__ void CalculateClosestApproachesKernel(PartitionParameters partParams,
     ApproachParameters appParams, double stepSize, double* closestTimes);
 
-struct Approach {
-    double distance;
-    double time;
-};
-
-class ClosestApproaches {
-    friend class ClosestApproachFinder;
-
-    double* _distances = nullptr;
-    double* _times = nullptr;
-    PartitionParameters _partParams;
-
-    inline void Populate(PartitionParameters partParams, double* distances, double* times)
-    {
-        Free();
-        _partParams = partParams;
-        _distances = distances;
-        _times = times;
-    }
-
-    void Free()
-    {
-        delete[] _distances;
-        delete[] _times;
-        _partParams.hostFree();
-    }
-
+class ClosestApproach {
 public:
-    // Returns the closest approach between objA and objB. If the pair is invalid (was not
-    // included in the partition) or the structure was not populated, { -1.0, -1.0 } is returned.
-    inline Approach Get(unsigned objA, unsigned objB) const
-    {
-        if (_distances == nullptr || _times == nullptr) {
-            return { -1.0, -1.0 }; // Not populated
-        }
-        if (objA == objB) {
-            return { 0.0, 0.0 };
-        }
-        auto idx = GetPartitionMapIdx(_partParams, objA, objB);
-        if (idx < 0) {
-            return { -1.0, -1.0 }; // Invalid pair
-        }
-        return { _distances[idx], _times[idx] };
-    }
-
-    inline ~ClosestApproaches() { Free(); }
-};
-
-class ClosestApproachFinder {
-public:
-    ClosestApproachFinder(cublasHandle_t* cublasHandle, FullPerturbationParameters* params)
+    ClosestApproach(cublasHandle_t* cublasHandle, FullPerturbationParameters* params)
         : _cublasHandle(cublasHandle)
         , _params(params)
     {
@@ -86,7 +38,7 @@ public:
     // The function finds the number of satellites that are closer than the given distance. If
     // hostClosestDistances is provided, it will be filled with the distances. When called after
     // multiple propagation phases, the closest distances across all phases will be returned.
-    void FindClosest(ClosestApproaches& closestApproaches);
+    void FindClosest(ClosestApproachData& closestApproaches);
 
 private:
     cublasHandle_t* _cublasHandle;

@@ -1,4 +1,5 @@
-#include "monte_carlo/utility.cuh"
+#include "closest_approach/utility/interpolation.cuh"
+#include "closest_approach/utility/partition_parameters.cuh"
 #include <cuda_runtime_api.h>
 #include <gtest/gtest.h>
 
@@ -13,7 +14,7 @@ TEST(MonteCarloUtilsTest, PartitionTest_ParameterCalculation)
 {
     std::vector<unsigned> setIds { 0, 0, 0, 1, 1, 2, 2, 2, 3, 3 };
     PartitionParameters params;
-    EXPECT_TRUE(CalculatePartitionParameters(setIds, params));
+    EXPECT_TRUE(params.Calculate(setIds));
 
     ASSERT_EQ(params.setNum, 4u);
     unsigned expected_setOffsets[] = { 0, 3, 5, 8 };
@@ -33,46 +34,46 @@ TEST(MonteCarloUtilsTest, PartitionTest_ParameterCalculationInvalid)
 {
     PartitionParameters params;
     std::vector<unsigned> setIds1 { 0, 0, 0, 1, 1, 2, 2, 2, 3, 0 };
-    EXPECT_FALSE(CalculatePartitionParameters(setIds1, params));
+    EXPECT_FALSE(params.Calculate(setIds1));
 
     std::vector<unsigned> setIds2 { 0, 0, 0, 1, 1, 2, 2, 2, 3, 5 };
-    EXPECT_FALSE(CalculatePartitionParameters(setIds2, params));
+    EXPECT_FALSE(params.Calculate(setIds2));
 
     std::vector<unsigned> setIds3 { 0, 0, 0, 1, 1, 3, 2, 2, 3, 3 };
-    EXPECT_FALSE(CalculatePartitionParameters(setIds3, params));
+    EXPECT_FALSE(params.Calculate(setIds3));
 }
 
 TEST(MonteCarloUtilsTest, PartitionTest_ValidPairs)
 {
     std::vector<unsigned> setIds { 0, 0, 0, 1, 1, 1, 2 };
     PartitionParameters params;
-    EXPECT_TRUE(CalculatePartitionParameters(setIds, params));
+    EXPECT_TRUE(params.Calculate(setIds));
     params.setIds = setIds.data();
 
-    EXPECT_EQ(GetPartitionMapIdx(params, 0, 3), 0);
-    EXPECT_EQ(GetPartitionMapIdx(params, 1, 6), 7);
-    EXPECT_EQ(GetPartitionMapIdx(params, 1, 3), 4);
-    EXPECT_EQ(GetPartitionMapIdx(params, 3, 6), 12);
-    EXPECT_EQ(GetPartitionMapIdx(params, 6, 5), 14); // Auto-swaps to (5, 6)
+    EXPECT_EQ(params.GetPartitionMapIdx(0, 3), 0);
+    EXPECT_EQ(params.GetPartitionMapIdx(1, 6), 7);
+    EXPECT_EQ(params.GetPartitionMapIdx(1, 3), 4);
+    EXPECT_EQ(params.GetPartitionMapIdx(3, 6), 12);
+    EXPECT_EQ(params.GetPartitionMapIdx(6, 5), 14); // Auto-swaps to (5, 6)
 
     unsigned idxA, idxB;
-    EXPECT_TRUE(GetPartitionMapPair(params, 0, idxA, idxB));
+    EXPECT_TRUE(params.GetPartitionMapPair(0, idxA, idxB));
     EXPECT_EQ(idxA, 0u);
     EXPECT_EQ(idxB, 3u);
 
-    EXPECT_TRUE(GetPartitionMapPair(params, 7, idxA, idxB));
+    EXPECT_TRUE(params.GetPartitionMapPair(7, idxA, idxB));
     EXPECT_EQ(idxA, 1u);
     EXPECT_EQ(idxB, 6u);
 
-    EXPECT_TRUE(GetPartitionMapPair(params, 4, idxA, idxB));
+    EXPECT_TRUE(params.GetPartitionMapPair(4, idxA, idxB));
     EXPECT_EQ(idxA, 1u);
     EXPECT_EQ(idxB, 3u);
 
-    EXPECT_TRUE(GetPartitionMapPair(params, 12, idxA, idxB));
+    EXPECT_TRUE(params.GetPartitionMapPair(12, idxA, idxB));
     EXPECT_EQ(idxA, 3u);
     EXPECT_EQ(idxB, 6u);
 
-    EXPECT_TRUE(GetPartitionMapPair(params, 14, idxA, idxB));
+    EXPECT_TRUE(params.GetPartitionMapPair(14, idxA, idxB));
     EXPECT_EQ(idxA, 5u);
     EXPECT_EQ(idxB, 6u);
 
@@ -83,7 +84,7 @@ TEST(MonteCarloUtilsTest, PartitionTest_OneSetNoPairs)
 {
     std::vector<unsigned> setIds { 0, 0, 0, 0 };
     PartitionParameters params;
-    EXPECT_TRUE(CalculatePartitionParameters(setIds, params));
+    EXPECT_TRUE(params.Calculate(setIds));
     params.setIds = setIds.data();
 
     EXPECT_EQ(params.setNum, 1u);
@@ -99,14 +100,14 @@ TEST(MonteCarloUtilsTest, PartitionTest_InvalidPairs)
 {
     std::vector<unsigned> setIds { 0, 0, 0, 1, 1, 2, 2, 2, 3, 3 };
     PartitionParameters params;
-    EXPECT_TRUE(CalculatePartitionParameters(setIds, params));
+    EXPECT_TRUE(params.Calculate(setIds));
     params.setIds = setIds.data();
 
-    EXPECT_EQ(GetPartitionMapIdx(params, 0, 1), -1);
-    EXPECT_EQ(GetPartitionMapIdx(params, 8, 9), -1);
+    EXPECT_EQ(params.GetPartitionMapIdx(0, 1), -1);
+    EXPECT_EQ(params.GetPartitionMapIdx(8, 9), -1);
 
     unsigned idxA, idxB;
-    EXPECT_FALSE(GetPartitionMapPair(params, 37, idxA, idxB));
+    EXPECT_FALSE(params.GetPartitionMapPair(37, idxA, idxB));
 
     FreePartitionParameters(params);
 }

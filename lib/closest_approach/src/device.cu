@@ -1,4 +1,6 @@
-#include "monte_carlo/utility.cuh"
+#include "closest_approach/closest_approach.cuh"
+#include "closest_approach/utility/interpolation.cuh"
+#include "closest_approach/utility/partition_parameters.cuh"
 
 __device__ void UpdateDimensions(Arrays3D arrays, double* src, unsigned tIdx, unsigned objIdx)
 {
@@ -43,7 +45,7 @@ __global__ void UpdateClosestApproachKernel(PartitionParameters partitionParams,
         return;
 
     unsigned idxA, idxB;
-    if (!GetPartitionMapPair(partitionParams, idx, idxA, idxB))
+    if (!partitionParams.GetPartitionMapPair(idx, idxA, idxB))
         return; // Should never happen
 
     auto posA = pos + idxA * 3;

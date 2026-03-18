@@ -1,4 +1,4 @@
-set(NAME monte_carlo)
+set(NAME closest_approach)
 
 add_library(${NAME} STATIC)
 
@@ -9,7 +9,7 @@ set_target_properties(${NAME} PROPERTIES
 target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-rdc=true>)
 
 target_sources(${NAME} PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/monte_carlo.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/closest_approach.cu
     ${CMAKE_CURRENT_SOURCE_DIR}/src/device.cu
 )
 

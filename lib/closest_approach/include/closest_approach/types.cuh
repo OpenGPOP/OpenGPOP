@@ -1,5 +1,6 @@
 #pragma once
 
+#include "closest_approach/utility/partition_parameters.cuh"
 #include "gpu_utils/gpu_utils.cuh"
 
 struct Arrays3D {
@@ -86,38 +87,50 @@ struct ApproachParameters {
     }
 };
 
-struct PartitionParameters {
-    unsigned setNum; // Number of sets
-    unsigned pairNum; // Number of pairs
+struct Approach {
+    double distance;
+    double time;
+};
 
-    unsigned* setIds = nullptr;
+class ClosestApproachData {
+    friend class ClosestApproach;
 
-    // Offsets of the beginnings of each set in the setIds array
-    // e.g.
-    // setIds     = [ 0 0 0 1 1 2 2 2 3 3 ]
-    // setOffsets = [ 0 3 5 8 ]
-    unsigned* setOffsets = nullptr;
+    double* _distances = nullptr;
+    double* _times = nullptr;
+    PartitionParameters _partParams;
 
-    // The number of elements with higher setIds
-    // e.g.
-    // setIds       = [ 0 0 0 1 1 2 2 2 3 3 ]
-    // numHigherIds = [ 7 5 2 0 ]
-    unsigned* numHigherIds = nullptr;
-
-    // Offsets of the beginnings of each set in the partition map array.
-    // Equivalent to exclusive cummulation of setSize[set] * numHigherIds[set]
-    // e.g.
-    // setIds       = [ 0 0 0 1 1 2 2 2 3 3 ]
-    // setSize      = [ 3  2  3  2  ]
-    // numHigherIds = [ 7  5  2  0  ]
-    // mapOffsets   = [ 0  21 31 37 ]
-    unsigned* mapOffsets = nullptr;
-
-    void hostFree()
+    inline void Populate(PartitionParameters partParams, double* distances, double* times)
     {
-        delete[] setIds;
-        delete[] setOffsets;
-        delete[] numHigherIds;
-        delete[] mapOffsets;
+        Free();
+        _partParams = partParams;
+        _distances = distances;
+        _times = times;
     }
+
+    void Free()
+    {
+        delete[] _distances;
+        delete[] _times;
+        _partParams.hostFree();
+    }
+
+public:
+    // Returns the closest approach between objA and objB. If the pair is invalid (was not
+    // included in the partition) or the structure was not populated, { -1.0, -1.0 } is returned.
+    inline Approach Get(unsigned objA, unsigned objB)
+    {
+        if (_distances == nullptr || _times == nullptr) {
+            return { -1.0, -1.0 }; // Not populated
+        }
+        if (objA == objB) {
+            return { 0.0, 0.0 };
+        }
+        auto idx = _partParams.GetPartitionMapIdx(objA, objB);
+        if (idx < 0) {
+            return { -1.0, -1.0 }; // Invalid pair
+        }
+        return { _distances[idx], _times[idx] };
+    }
+
+    inline ~ClosestApproachData() { Free(); }
 };

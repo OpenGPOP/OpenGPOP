@@ -1,5 +1,4 @@
-#include "monte_carlo/monte_carlo.cuh"
-#include "monte_carlo/utility.cuh"
+#include "closest_approach/closest_approach.cuh"
 #include <cuda_runtime_api.h>
 #include <gtest/gtest.h>
 #include <limits>
@@ -49,7 +48,7 @@ protected:
 
         // 2. Setup PartitionParameters for 1 pair
         PartitionParameters tempParams;
-        CalculatePartitionParameters(std::vector<unsigned> { 0, 1 }, tempParams);
+        tempParams.Calculate(std::vector<unsigned> { 0, 1 });
         tempParams.setIds = new unsigned[2] { 0, 1 };
         cudaMalloc(&d_partitionParams.setOffsets, 2 * sizeof(unsigned));
         cudaMalloc(&d_partitionParams.numHigherIds, 2 * sizeof(unsigned));

@@ -1,26 +1,14 @@
+#include "closest_approach/closest_approach.cuh"
+#include "closest_approach/utility/partition_parameters.cuh"
 #include "force_model/force_model.cuh"
 #include "gpu_propagator/gpu_propagator.cuh"
 #include "gpu_utils/gpu_utils.cuh"
-#include "monte_carlo/monte_carlo.cuh"
-#include "monte_carlo/utility.cuh"
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
-// #include <iostream>
 
-// void PrintEntities(double* positionsHost, double* velocitiesHost, int numSatellites)
-// {
-//     for (int i = 0; i < numSatellites; i += 1) {
-//         std::cout << "Satellite " << i << ": Position: (" << positionsHost[i * 3] << ", "
-//                   << positionsHost[i * 3 + 1] << ", " << positionsHost[i * 3 + 2]
-//                   << "), Velocity: (" << velocitiesHost[i * 3] << ", " << velocitiesHost[i * 3 +
-//                   1]
-//                   << ", " << velocitiesHost[i * 3 + 2] << ")\n";
-//     }
-// }
-
-void ClosestApproachFinder::Initialize(std::vector<double>& positions,
-    std::vector<double>& velocities, std::vector<unsigned>& setIndices)
+void ClosestApproach::Initialize(std::vector<double>& positions, std::vector<double>& velocities,
+    std::vector<unsigned>& setIndices)
 {
     // Initialization should be called only once
     assert(_numEntities == 0);
@@ -32,12 +20,12 @@ void ClosestApproachFinder::Initialize(std::vector<double>& positions,
     assert(positions.size() == setIndices.size() * 3);
     _numEntities = setIndices.size();
 
-    // Calculate partition parameters
-    assert(CalculatePartitionParameters(setIndices, _hostPartitionParams));
+    // Calculate partition parameters, save to _hostPartitionParams
+    assert(_hostPartitionParams.Calculate(setIndices));
     _hostPartitionParams.setIds = new unsigned[setIndices.size()];
     memcpy(_hostPartitionParams.setIds, setIndices.data(), sizeof(unsigned) * setIndices.size());
 
-    // Allocate device memory, copy partition parameters and setIds and free host memory
+    // Allocate device memory, copy partition parameters and setIds
     gpuErrchk(cudaMalloc(&_devPartitionParams.setIds, sizeof(unsigned) * setIndices.size()));
     gpuErrchk(
         cudaMalloc(&_devPartitionParams.setOffsets, sizeof(unsigned) * _devPartitionParams.setNum));
@@ -78,7 +66,7 @@ void ClosestApproachFinder::Initialize(std::vector<double>& positions,
     gpuErrchk(cudaMalloc(&_devAccelerations, sizeof(double) * positions.size()));
 }
 
-void ClosestApproachFinder::Propagate(double stepSize, int numSteps)
+void ClosestApproach::Propagate(double stepSize, int numSteps)
 {
     assert(_numEntities != 0); // Ensure initialized
     assert(stepSize > 0);
@@ -102,7 +90,7 @@ void ClosestApproachFinder::Propagate(double stepSize, int numSteps)
     }
 }
 
-void ClosestApproachFinder::FindClosest(ClosestApproaches& closestApproaches)
+void ClosestApproach::FindClosest(ClosestApproachData& closestApproaches)
 {
     assert(_lastStepSize > 0); // Ensure that Propagate has been called
 
