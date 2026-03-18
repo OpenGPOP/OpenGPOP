@@ -286,14 +286,14 @@ TEST(MonteCarloUtilsTest, ApproachFunc_EvaluatesDotProductCorrectly)
     HermitePolynomial Ax(0, 1, 0, 1, 1, 0, 2, 1, 0, dt); // A_x(t) = t
     HermitePolynomial Ay(2, 0, 0, 2, 0, 0, 2, 0, 0, dt); // A_y(t) = 2
     HermitePolynomial Az(0, 0, 0, 0, 0, 0, 0, 0, 0, dt); // A_z(t) = 0
-    HermitePolynomial3D objA { Ax, Ay, Az };
+    InterpolatedObject objA { Ax, Ay, Az };
 
     // B'(t) = [1, t - 3, 0]
     // Integrating B' gives B(t) = [t, 0.5*t^2 - 3t, 0]
     HermitePolynomial Bx(0, 1, 0, 1, 1, 0, 2, 1, 0, dt);
     HermitePolynomial By(0, -3, 1, -2.5, -2, 1, -4, -1, 1, dt);
     HermitePolynomial Bz(0, 0, 0, 0, 0, 0, 0, 0, 0, dt);
-    HermitePolynomial3D objB { Bx, By, Bz };
+    InterpolatedObject objB { Bx, By, Bz };
 
     ApproachFunc func(objA, objB);
 
@@ -315,12 +315,12 @@ TEST(MonteCarloUtilsTest, Integration_FindRootOfApproachFunc)
     HermitePolynomial Ax(0, 1, 0, 1, 1, 0, 2, 1, 0, dt);
     HermitePolynomial Ay(2, 0, 0, 2, 0, 0, 2, 0, 0, dt);
     HermitePolynomial Az(0, 0, 0, 0, 0, 0, 0, 0, 0, dt);
-    HermitePolynomial3D objA { Ax, Ay, Az };
+    InterpolatedObject objA { Ax, Ay, Az };
 
     HermitePolynomial Bx(0, 1, 0, 1, 1, 0, 2, 1, 0, dt);
     HermitePolynomial By(0, -3, 1, -2.5, -2, 1, -4, -1, 1, dt);
     HermitePolynomial Bz(0, 0, 0, 0, 0, 0, 0, 0, 0, dt);
-    HermitePolynomial3D objB { Bx, By, Bz };
+    InterpolatedObject objB { Bx, By, Bz };
 
     ApproachFunc func(objA, objB);
 

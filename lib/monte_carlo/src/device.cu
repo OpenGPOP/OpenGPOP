@@ -65,19 +65,74 @@ __global__ void UpdateClosestApproachKernel(PartitionParameters partitionParams,
         UpdateApproachStates(ap.after, pos, vel, acc, idx, idxA, idxB);
     }
 
-    // TODO: Fix race
+    // TODO: Fix race?
     UpdateLastArray(lastPos, pos, idxA, idxB);
     UpdateLastArray(lastVel, vel, idxA, idxB);
     UpdateLastArray(lastAcc, acc, idxA, idxB);
 }
 
-__global__ void CalculateClosestApproachKernel(PartitionParameters pp, ApproachParameters ap)
+__global__ void CalculateClosestApproachesKernel(PartitionParameters partParams,
+    ApproachParameters appParams, double stepSize, double* closestTimes)
 {
     auto idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= pp.pairNum)
+    if (idx >= partParams.pairNum)
         return;
 
-    unsigned idxA, idxB;
-    if (!GetPartitionMapPair(pp, idx, idxA, idxB))
-        return; // Should never happen
+    // Interpolate object A
+    HermitePolynomial polyAx(appParams.before.o1.position.x[idx],
+        appParams.before.o1.velocity.x[idx], appParams.before.o1.acceleration.x[idx], // before
+        appParams.closest.o1.position.x[idx], appParams.closest.o1.velocity.x[idx],
+        appParams.closest.o1.acceleration.x[idx], // closest
+        appParams.after.o1.position.x[idx], appParams.after.o1.velocity.x[idx],
+        appParams.after.o1.acceleration.x[idx], // after
+        stepSize);
+    HermitePolynomial polyAy(appParams.before.o1.position.y[idx],
+        appParams.before.o1.velocity.y[idx], appParams.before.o1.acceleration.y[idx], // before
+        appParams.closest.o1.position.y[idx], appParams.closest.o1.velocity.y[idx],
+        appParams.closest.o1.acceleration.y[idx], // closest
+        appParams.after.o1.position.y[idx], appParams.after.o1.velocity.y[idx],
+        appParams.after.o1.acceleration.y[idx], // after
+        stepSize);
+    HermitePolynomial polyAz(appParams.before.o1.position.z[idx],
+        appParams.before.o1.velocity.z[idx], appParams.before.o1.acceleration.z[idx], // before
+        appParams.closest.o1.position.z[idx], appParams.closest.o1.velocity.z[idx],
+        appParams.closest.o1.acceleration.z[idx], // closest
+        appParams.after.o1.position.z[idx], appParams.after.o1.velocity.z[idx],
+        appParams.after.o1.acceleration.z[idx], // after
+        stepSize);
+    InterpolatedObject objA { polyAx, polyAy, polyAz };
+
+    // Interpolate object B
+    HermitePolynomial polyBx(appParams.before.o2.position.x[idx],
+        appParams.before.o2.velocity.x[idx], appParams.before.o2.acceleration.x[idx], // before
+        appParams.closest.o2.position.x[idx], appParams.closest.o2.velocity.x[idx],
+        appParams.closest.o2.acceleration.x[idx], // closest
+        appParams.after.o2.position.x[idx], appParams.after.o2.velocity.x[idx],
+        appParams.after.o2.acceleration.x[idx], // after
+        stepSize);
+    HermitePolynomial polyBy(appParams.before.o2.position.y[idx],
+        appParams.before.o2.velocity.y[idx], appParams.before.o2.acceleration.y[idx], // before
+        appParams.closest.o2.position.y[idx], appParams.closest.o2.velocity.y[idx],
+        appParams.closest.o2.acceleration.y[idx], // closest
+        appParams.after.o2.position.y[idx], appParams.after.o2.velocity.y[idx],
+        appParams.after.o2.acceleration.y[idx], // after
+        stepSize);
+    HermitePolynomial polyBz(appParams.before.o2.position.z[idx],
+        appParams.before.o2.velocity.z[idx], appParams.before.o2.acceleration.z[idx], // before
+        appParams.closest.o2.position.z[idx], appParams.closest.o2.velocity.z[idx],
+        appParams.closest.o2.acceleration.z[idx], // closest
+        appParams.after.o2.position.z[idx], appParams.after.o2.velocity.z[idx],
+        appParams.after.o2.acceleration.z[idx], // after
+        stepSize);
+    InterpolatedObject objB { polyBx, polyBy, polyBz };
+
+    ApproachFunc approachFunc { objA, objB };
+    double t = FindRoot(approachFunc, 0.0, stepSize);
+    closestTimes[idx] = t + (appParams.closestSteps[idx] - 1) * stepSize;
+
+    // Calculate the closest distance
+    double dx = objA.x(t) - objB.x(t);
+    double dy = objA.y(t) - objB.y(t);
+    double dz = objA.z(t) - objB.z(t);
+    appParams.closestDistances[idx] = sqrt(dx * dx + dy * dy + dz * dz);
 }

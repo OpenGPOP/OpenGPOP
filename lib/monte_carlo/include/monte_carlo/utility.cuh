@@ -172,21 +172,15 @@ struct HermitePolynomial {
     }
 };
 
-struct HermitePolynomial3D {
+struct InterpolatedObject {
     HermitePolynomial x;
     HermitePolynomial y;
     HermitePolynomial z;
 };
 
 struct ApproachFunc {
-    HermitePolynomial3D objA;
-    HermitePolynomial3D objB;
-
-    __host__ __device__ ApproachFunc(HermitePolynomial3D objA, HermitePolynomial3D objB)
-        : objA(objA)
-        , objB(objB)
-    {
-    }
+    InterpolatedObject objA;
+    InterpolatedObject objB;
 
     // Calculates the dot product of the position difference and velocity difference at a given time
     inline __host__ __device__ double operator()(double t)

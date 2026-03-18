@@ -19,8 +19,8 @@
 //     }
 // }
 
-void ClosestApproach::Initialize(std::vector<double>& positions, std::vector<double>& velocities,
-    std::vector<unsigned>& setIndices)
+void ClosestApproachFinder::Initialize(std::vector<double>& positions,
+    std::vector<double>& velocities, std::vector<unsigned>& setIndices)
 {
     // Initialization should be called only once
     assert(_numEntities == 0);
@@ -32,28 +32,27 @@ void ClosestApproach::Initialize(std::vector<double>& positions, std::vector<dou
     assert(positions.size() == setIndices.size() * 3);
     _numEntities = setIndices.size();
 
-    // Calculate partition parameters and make a local copy to preserve host pointers
-    assert(CalculatePartitionParameters(setIndices, _partitionParams));
-    auto paramsCopy = _partitionParams;
-
-    gpuErrchk(cudaMalloc(&_partitionParams.setIds, sizeof(unsigned) * setIndices.size()));
-    gpuErrchk(cudaMemcpy(_partitionParams.setIds, setIndices.data(),
-        sizeof(unsigned) * setIndices.size(), cudaMemcpyHostToDevice));
+    // Calculate partition parameters
+    assert(CalculatePartitionParameters(setIndices, _hostPartitionParams));
+    _hostPartitionParams.setIds = new unsigned[setIndices.size()];
+    memcpy(_hostPartitionParams.setIds, setIndices.data(), sizeof(unsigned) * setIndices.size());
 
     // Allocate device memory, copy partition parameters and setIds and free host memory
-    gpuErrchk(cudaMalloc(&_partitionParams.setOffsets, sizeof(unsigned) * _partitionParams.setNum));
+    gpuErrchk(cudaMalloc(&_devPartitionParams.setIds, sizeof(unsigned) * setIndices.size()));
     gpuErrchk(
-        cudaMalloc(&_partitionParams.numHigherIds, sizeof(unsigned) * _partitionParams.setNum));
-    gpuErrchk(cudaMalloc(&_partitionParams.mapOffsets, sizeof(unsigned) * _partitionParams.setNum));
-    gpuErrchk(cudaMemcpy(_partitionParams.setOffsets, paramsCopy.setOffsets,
-        sizeof(unsigned) * _partitionParams.setNum, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(_partitionParams.numHigherIds, paramsCopy.numHigherIds,
-        sizeof(unsigned) * _partitionParams.setNum, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(_partitionParams.mapOffsets, paramsCopy.mapOffsets,
-        sizeof(unsigned) * _partitionParams.setNum, cudaMemcpyHostToDevice));
-    delete[] paramsCopy.setOffsets;
-    delete[] paramsCopy.numHigherIds;
-    delete[] paramsCopy.mapOffsets;
+        cudaMalloc(&_devPartitionParams.setOffsets, sizeof(unsigned) * _devPartitionParams.setNum));
+    gpuErrchk(cudaMalloc(
+        &_devPartitionParams.numHigherIds, sizeof(unsigned) * _devPartitionParams.setNum));
+    gpuErrchk(
+        cudaMalloc(&_devPartitionParams.mapOffsets, sizeof(unsigned) * _devPartitionParams.setNum));
+    gpuErrchk(cudaMemcpy(_devPartitionParams.setIds, _hostPartitionParams.setIds,
+        sizeof(unsigned) * setIndices.size(), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(_devPartitionParams.setOffsets, _hostPartitionParams.setOffsets,
+        sizeof(unsigned) * _devPartitionParams.setNum, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(_devPartitionParams.numHigherIds, _hostPartitionParams.numHigherIds,
+        sizeof(unsigned) * _devPartitionParams.setNum, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(_devPartitionParams.mapOffsets, _hostPartitionParams.mapOffsets,
+        sizeof(unsigned) * _devPartitionParams.setNum, cudaMemcpyHostToDevice));
 
     // Allocate device memory and copy position and velocity data
     gpuErrchk(cudaMalloc(&_devPositions, sizeof(double) * positions.size()));
@@ -64,26 +63,27 @@ void ClosestApproach::Initialize(std::vector<double>& positions, std::vector<dou
         cudaMemcpyHostToDevice));
 
     // Allocate memory for results
-    _approachStates.cudaAllocate(_partitionParams.pairNum);
+    _devApproachParams.cudaAllocate(_devPartitionParams.pairNum);
 
     // Initialize the closest distances to double max and closest steps to -1
     std::vector<double> closestDistancesHost(
-        _partitionParams.pairNum, std::numeric_limits<double>::max());
-    std::vector<int> closestStepsHost(_partitionParams.pairNum, -1);
-    gpuErrchk(cudaMemcpy(_approachStates.closestDistances, closestDistancesHost.data(),
-        sizeof(double) * _partitionParams.pairNum, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(_approachStates.closestSteps, closestStepsHost.data(),
-        sizeof(int) * _partitionParams.pairNum, cudaMemcpyHostToDevice));
+        _devPartitionParams.pairNum, std::numeric_limits<double>::max());
+    std::vector<int> closestStepsHost(_devPartitionParams.pairNum, -1);
+    gpuErrchk(cudaMemcpy(_devApproachParams.closestDistances, closestDistancesHost.data(),
+        sizeof(double) * _devPartitionParams.pairNum, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(_devApproachParams.closestSteps, closestStepsHost.data(),
+        sizeof(int) * _devPartitionParams.pairNum, cudaMemcpyHostToDevice));
 
     // Allocate memory for acceleration vectors
     gpuErrchk(cudaMalloc(&_devAccelerations, sizeof(double) * positions.size()));
 }
 
-void ClosestApproach::Propagate(double stepSize, int numSteps)
+void ClosestApproachFinder::Propagate(double stepSize, int numSteps)
 {
     assert(_numEntities != 0); // Ensure initialized
     assert(stepSize > 0);
     assert(numSteps > 0);
+    _lastStepSize = stepSize;
 
     ForceModel forceModel { _cublasHandle, _numEntities, stepSize, _params };
     GpuPropagator propagator(_devPositions, _devVelocities, _numEntities, _cublasHandle, stepSize,
@@ -93,60 +93,54 @@ void ClosestApproach::Propagate(double stepSize, int numSteps)
         propagator.Step(nullptr, nullptr, _devAccelerations);
 
         int threadsPerBlock = 256;
-        int blockCount = _partitionParams.pairNum / threadsPerBlock + 1;
-        UpdateClosestApproachKernel<<<blockCount, threadsPerBlock>>>(_partitionParams,
+        int blockCount = _devPartitionParams.pairNum / threadsPerBlock + 1;
+        UpdateClosestApproachKernel<<<blockCount, threadsPerBlock>>>(_devPartitionParams,
             _devPositions, _devVelocities, _devAccelerations, _devLastPositions, _devLastVelocities,
-            _devLastAccelerations, _approachStates, step);
+            _devLastAccelerations, _devApproachParams, step);
         gpuErrchk(cudaGetLastError());
         gpuErrchk(cudaDeviceSynchronize());
     }
 }
 
-int ClosestApproach::FindClosest(double distanceThreshold, double* hostClosestDistances)
+void ClosestApproachFinder::FindClosest(ClosestApproaches& closestApproaches)
 {
-    return 0;
-    // cudaError_t cudaStatus;
+    assert(_lastStepSize > 0); // Ensure that Propagate has been called
 
-    // int threadsPerBlock = 256;
-    // int blockCount = _numEntities / threadsPerBlock + 1;
-    // FindClosestApproachKernel<<<blockCount, threadsPerBlock>>>(_numEntities, _devFinePhaseParams,
-    //     _finePhaseParams.distances); // We reuse the distances array, since it is no logner
-    //     needed
+    double* devClosestTimes;
+    gpuErrchk(cudaMalloc(&devClosestTimes, sizeof(double) * _devPartitionParams.pairNum));
 
-    // cudaStatus = cudaGetLastError();
-    // if (cudaStatus != cudaSuccess) {
-    //     fprintf(stderr, "FindClosestApproachKernel launch failed: %s\n",
-    //         cudaGetErrorString(cudaStatus));
-    //     return -1;
-    // }
-    // cudaStatus = cudaDeviceSynchronize();
-    // if (cudaStatus != cudaSuccess) {
-    //     fprintf(stderr, "cudaDeviceSynchronize failed: %s\n", cudaGetErrorString(cudaStatus));
-    //     return -1;
-    // }
+    int threadsPerBlock = 256;
+    int blockCount = _devPartitionParams.pairNum / threadsPerBlock + 1;
+    CalculateClosestApproachesKernel<<<blockCount, threadsPerBlock>>>(
+        _devPartitionParams, _devApproachParams, _lastStepSize, devClosestTimes);
+    gpuErrchk(cudaGetLastError());
+    gpuErrchk(cudaDeviceSynchronize());
 
-    // // Copy the distances back to the host
-    // bool returnDistances = hostClosestDistances != nullptr;
-    // if (!returnDistances) {
-    //     hostClosestDistances = new double[_numEntities];
-    // }
-    // cudaStatus = cudaMemcpy(hostClosestDistances, _finePhaseParams.distances,
-    //     _numEntities * sizeof(double), cudaMemcpyDeviceToHost);
-    // if (cudaStatus != cudaSuccess) {
-    //     fprintf(stderr, "cudaMemcpy failed for _finePhaseParams.distances!");
-    //     return -1;
-    // }
+    // Copy the closest distances back to the host
+    double* closestDistances = new double[_devPartitionParams.pairNum];
+    gpuErrchk(cudaMemcpy(closestDistances, _devApproachParams.closestDistances,
+        sizeof(double) * _devPartitionParams.pairNum, cudaMemcpyDeviceToHost));
 
-    // int count = 0;
-    // for (int i = 0; i < _numEntities; ++i) {
-    //     if (hostClosestDistances[i] < distanceThreshold) {
-    //         count++;
-    //     }
-    // }
+    double* closestTimes = new double[_devPartitionParams.pairNum];
+    gpuErrchk(cudaMemcpy(closestTimes, devClosestTimes,
+        sizeof(double) * _devPartitionParams.pairNum, cudaMemcpyDeviceToHost));
 
-    // if (!returnDistances) {
-    //     delete[] hostClosestDistances;
-    // }
+    // Make a deep copy of the host partition parameters to return with the results
+    PartitionParameters hostPartitionParamsCopy;
+    hostPartitionParamsCopy.setNum = _hostPartitionParams.setNum;
+    hostPartitionParamsCopy.pairNum = _hostPartitionParams.pairNum;
+    hostPartitionParamsCopy.setIds = new unsigned[hostPartitionParamsCopy.setNum];
+    hostPartitionParamsCopy.setOffsets = new unsigned[hostPartitionParamsCopy.setNum];
+    hostPartitionParamsCopy.numHigherIds = new unsigned[hostPartitionParamsCopy.setNum];
+    hostPartitionParamsCopy.mapOffsets = new unsigned[hostPartitionParamsCopy.setNum];
+    std::memcpy(hostPartitionParamsCopy.setIds, _hostPartitionParams.setIds,
+        sizeof(unsigned) * hostPartitionParamsCopy.setNum);
+    std::memcpy(hostPartitionParamsCopy.setOffsets, _hostPartitionParams.setOffsets,
+        sizeof(unsigned) * hostPartitionParamsCopy.setNum);
+    std::memcpy(hostPartitionParamsCopy.numHigherIds, _hostPartitionParams.numHigherIds,
+        sizeof(unsigned) * hostPartitionParamsCopy.setNum);
+    std::memcpy(hostPartitionParamsCopy.mapOffsets, _hostPartitionParams.mapOffsets,
+        sizeof(unsigned) * hostPartitionParamsCopy.setNum);
 
-    // return count;
+    closestApproaches.Populate(hostPartitionParamsCopy, closestDistances, closestTimes);
 }

@@ -112,4 +112,12 @@ struct PartitionParameters {
     // numHigherIds = [ 7  5  2  0  ]
     // mapOffsets   = [ 0  21 31 37 ]
     unsigned* mapOffsets = nullptr;
+
+    void hostFree()
+    {
+        delete[] setIds;
+        delete[] setOffsets;
+        delete[] numHigherIds;
+        delete[] mapOffsets;
+    }
 };
