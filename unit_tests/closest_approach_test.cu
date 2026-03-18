@@ -15,7 +15,14 @@ protected:
         ASSERT_EQ(stat, CUBLAS_STATUS_SUCCESS) << "cuBLAS initialization failed!";
     }
 
-    void TearDown() override { cublasDestroy(cublasHandle); }
+    void TearDown() override
+    {
+        cublasDestroy(cublasHandle);
+
+        // Check for uncaught errors
+        gpuErrchk(cudaGetLastError());
+        cudaDeviceReset();
+    }
 };
 
 TEST_F(ClosestApproachTest, InitializeAllocatesMemoryWithoutCrashing)
@@ -150,15 +157,58 @@ TEST_F(ClosestApproachTest, ClosestApproachBetweenStepsNonZero)
 
     ca.Initialize(pos, vel, sets);
 
-    ClosestApproachData data;
-
     // Propagate 5 steps to t=0.5s.
     // The closest approach occurs when Entity 1 crosses X=0.
     // At V=-2.0 m/s, X=0 is reached at t=0.25s.
     // This is exactly halfway between the step at 0.2s and 0.3s.
     ca.Propagate(5);
+
+    ClosestApproachData data;
     ca.FindClosest(data);
 
     EXPECT_NEAR(data.Get(0, 1).distance, 3.0, 1e-14);
     EXPECT_NEAR(data.Get(0, 1).time, 0.25, 1e-14);
+}
+
+TEST_F(ClosestApproachTest, MultiObjectSetsEvaluateCorrectPairs)
+{
+    int numSatellites = 3;
+    double stepSize = 0.1;
+
+    NoAcceleration noAccel;
+    MockForceModel forceModel(numSatellites, stepSize, noAccel);
+    ClosestApproach ca(&cublasHandle, &params, forceModel, stepSize);
+
+    // Entity 0 (Set 0): at origin, stationary
+    // Entity 1 (Set 1): starts at X=10, Y=5, Z=0, moving -X at 1 m/s
+    // Entity 2 (Set 1): starts at X=3, Y=0, Z=8, moving -Z at 2 m/s
+    std::vector<double> pos = {
+        0.0, 0.0, 0.0, // Entity 0
+        10.0, 5.0, 0.0, // Entity 1
+        3.0, 0.0, 8.0 // Entity 2
+    };
+    std::vector<double> vel = {
+        0.0, 0.0, 0.0, // Entity 0
+        -1.0, 0.0, 0.0, // Entity 1
+        0.0, 0.0, -2.0 // Entity 2
+    };
+    std::vector<unsigned> sets = { 0, 1, 1 };
+
+    ca.Initialize(pos, vel, sets);
+
+    // Propagate 120 steps to t=12.0s to cover both closest approach events
+    ca.Propagate(120);
+
+    ClosestApproachData data;
+    ca.FindClosest(data);
+
+    // Check Entity 0 vs Entity 1 (Pair 0-1)
+    // Closest approach occurs at t=10.0s when X=0. Minimum distance is the Y-offset (5.0).
+    EXPECT_NEAR(data.Get(0, 1).distance, 5.0, 1e-14);
+    EXPECT_NEAR(data.Get(0, 1).time, 10.0, 1e-14);
+
+    // Check Entity 0 vs Entity 2 (Pair 0-2)
+    // Closest approach occurs at t=4.0s when Z=0. Minimum distance is the X-offset (3.0).
+    EXPECT_NEAR(data.Get(0, 2).distance, 3.0, 1e-14);
+    EXPECT_NEAR(data.Get(2, 0).time, 4.0, 1e-14);
 }

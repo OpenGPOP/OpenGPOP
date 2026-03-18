@@ -24,16 +24,16 @@ target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
 
 
 target_sources(${NAME} PRIVATE
-        # rk8_test.cu
-        # fm_gravity_source_test.cu
-        # integrator_prediction_test.cu
-        # integrator_test.cu
-        # startup_test.cu
-        # startup_correction_test.cu
-        # propagator_test.cu
-        # force_model_test.cu
-        # fm_ref_sys_trans_test.cu
-        # fm_time_points_test.cu
+        rk8_test.cu
+        fm_gravity_source_test.cu
+        integrator_prediction_test.cu
+        integrator_test.cu
+        startup_test.cu
+        startup_correction_test.cu
+        propagator_test.cu
+        force_model_test.cu
+        fm_ref_sys_trans_test.cu
+        fm_time_points_test.cu
         closest_approach_test.cu
         closest_approach_utils_test.cu
         main.cu

@@ -138,6 +138,8 @@ void ClosestApproach::FindClosest(ClosestApproachData& closestApproaches)
     gpuErrchk(cudaMemcpy(closestTimes, devClosestTimes,
         sizeof(double) * _devPartitionParams.pairNum, cudaMemcpyDeviceToHost));
 
+    CUDA_SAFE_FREE(devClosestTimes);
+
     // Make a deep copy of the host partition parameters to return with the results
     PartitionParameters hostPartitionParamsCopy;
     hostPartitionParamsCopy.setNum = _hostPartitionParams.setNum;
