@@ -65,6 +65,7 @@ __global__ void UpdateClosestApproachKernel(PartitionParameters partitionParams,
         UpdateApproachStates(ap.after, pos, vel, acc, idx, idxA, idxB);
     }
 
+    // TODO: Fix race
     UpdateLastArray(lastPos, pos, idxA, idxB);
     UpdateLastArray(lastVel, vel, idxA, idxB);
     UpdateLastArray(lastAcc, acc, idxA, idxB);

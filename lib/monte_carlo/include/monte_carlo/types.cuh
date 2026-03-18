@@ -78,6 +78,8 @@ struct ApproachParameters {
 
     void cudaFree()
     {
+        CUDA_SAFE_FREE(closestDistances);
+        CUDA_SAFE_FREE(closestSteps);
         closest.cudaFree();
         before.cudaFree();
         after.cudaFree();

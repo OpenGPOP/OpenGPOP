@@ -4,8 +4,8 @@
 #include <cstring>
 #include <vector>
 
-
-__host__ __device__ int GetPartitionMapIdx(PartitionParameters params, unsigned idxA, unsigned idxB)
+inline __host__ __device__ int GetPartitionMapIdx(
+    PartitionParameters params, unsigned idxA, unsigned idxB)
 {
     if (idxA > idxB) {
         auto tmp = idxA;
@@ -26,7 +26,7 @@ __host__ __device__ int GetPartitionMapIdx(PartitionParameters params, unsigned 
     return offset1 + offset2 + offset3;
 }
 
-__host__ __device__ bool GetPartitionMapPair(
+inline __host__ __device__ bool GetPartitionMapPair(
     PartitionParameters params, unsigned idx, unsigned& idxA, unsigned& idxB)
 {
     // Find the A set (it cannot be the last one)
@@ -49,7 +49,8 @@ __host__ __device__ bool GetPartitionMapPair(
 }
 
 // Calculates the PartitionParameters structure and fills it, apart from the setIds array.
-bool CalculatePartitionParameters(std::vector<unsigned> setIds, PartitionParameters& params)
+inline __host__ bool CalculatePartitionParameters(
+    std::vector<unsigned> setIds, PartitionParameters& params)
 {
     std::vector<unsigned> setOffsets;
     std::vector<unsigned> sizes;
