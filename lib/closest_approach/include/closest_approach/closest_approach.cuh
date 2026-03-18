@@ -3,6 +3,7 @@
 #include "closest_approach/types.cuh"
 #include "closest_approach/utility/partition_parameters.cuh"
 #include "cublas_v2.h"
+#include "force_model/iforce_model.cuh"
 #include "types/Parameters.hpp"
 #include <cassert>
 #include <cstdlib>
@@ -14,15 +15,20 @@ __global__ void UpdateClosestApproachKernel(PartitionParameters partitionParams,
     ApproachParameters ap, unsigned stepNum);
 
 __global__ void CalculateClosestApproachesKernel(PartitionParameters partParams,
-    ApproachParameters appParams, double stepSize, double* closestTimes);
+    ApproachParameters appParams, double stepSize, unsigned totalSteps, double* closestTimes);
 
 class ClosestApproach {
 public:
-    ClosestApproach(cublasHandle_t* cublasHandle, FullPerturbationParameters* params)
+    ClosestApproach(cublasHandle_t* cublasHandle, FullPerturbationParameters* params,
+        IForceModel& forceModel, double stepSize)
         : _cublasHandle(cublasHandle)
         , _params(params)
+        , _forceModel(forceModel)
+        , _stepSize(stepSize)
     {
+        assert(stepSize > 0);
     }
+    ~ClosestApproach();
 
     // Initializes simulation parameters and allocates memory on the device. The positions and
     // velocities vectors must be of the same size. The setIndices vector must be of size equal to
@@ -33,7 +39,7 @@ public:
 
     // Propagates the objects for the specified number of steps with the given step size. On
     // subsequent calls, the propagation will continue from the last state.
-    void Propagate(double stepSize, int numSteps);
+    void Propagate(int numSteps);
 
     // The function finds the number of satellites that are closer than the given distance. If
     // hostClosestDistances is provided, it will be filled with the distances. When called after
@@ -44,14 +50,20 @@ private:
     cublasHandle_t* _cublasHandle;
     FullPerturbationParameters* _params;
 
-    double _lastStepSize = 0;
+    double _stepSize = 0;
+    double _totalNumSteps = 0;
+    double _lastNumSteps = 0;
+
     unsigned _numEntities = 0;
     double* _devPositions;
     double* _devVelocities;
     double* _devAccelerations;
+
     double* _devLastPositions;
     double* _devLastVelocities;
     double* _devLastAccelerations;
+
+    IForceModel& _forceModel;
 
     PartitionParameters _hostPartitionParams;
     PartitionParameters _devPartitionParams;

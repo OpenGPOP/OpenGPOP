@@ -74,11 +74,22 @@ __global__ void UpdateClosestApproachKernel(PartitionParameters partitionParams,
 }
 
 __global__ void CalculateClosestApproachesKernel(PartitionParameters partParams,
-    ApproachParameters appParams, double stepSize, double* closestTimes)
+    ApproachParameters appParams, double stepSize, unsigned totalSteps, double* closestTimes)
 {
     auto idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= partParams.pairNum)
         return;
+
+    // Check if first/last step was closest
+    auto closestStep = appParams.closestSteps[idx];
+    if (closestStep == 0) {
+        closestTimes[idx] = 0.0;
+        return;
+    }
+    if (closestStep == totalSteps - 1) {
+        closestTimes[idx] = (double)totalSteps * stepSize;
+        return;
+    }
 
     // Interpolate object A
     HermitePolynomial polyAx(appParams.before.o1.position.x[idx],
@@ -130,7 +141,7 @@ __global__ void CalculateClosestApproachesKernel(PartitionParameters partParams,
 
     ApproachFunc approachFunc { objA, objB };
     double t = FindRoot(approachFunc, 0.0, stepSize);
-    closestTimes[idx] = t + (appParams.closestSteps[idx] - 1) * stepSize;
+    closestTimes[idx] = t + appParams.closestSteps[idx] * stepSize;
 
     // Calculate the closest distance
     double dx = objA.x(t) - objB.x(t);
