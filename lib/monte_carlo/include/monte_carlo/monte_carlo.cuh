@@ -33,7 +33,7 @@ public:
     // The function finds the number of satellites that are closer than the given distance. If
     // hostClosestDistances is provided, it will be filled with the distances. When called after
     // multiple propagation phases, the closest distances across all phases will be returned.
-    int CollectResults(double distanceThreshold, double* hostClosestDistances = nullptr);
+    int FindClosest(double distanceThreshold, double* hostClosestDistances = nullptr);
 
 private:
     cublasHandle_t* _cublasHandle;

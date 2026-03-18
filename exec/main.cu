@@ -75,7 +75,7 @@ int main()
     monteCarlo.FinePropagationPhase();
 
     double threshold = 10'000.0; // [m]
-    int count = monteCarlo.CollectResults(threshold);
+    int count = monteCarlo.FindClosest(threshold);
     std::cout << "Number of satellites closer than " << threshold << " m: " << count << std::endl;
 
     cudaFree(positions);

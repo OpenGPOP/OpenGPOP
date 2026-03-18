@@ -70,3 +70,14 @@ __global__ void UpdateClosestApproachKernel(PartitionParameters partitionParams,
     UpdateLastArray(lastVel, vel, idxA, idxB);
     UpdateLastArray(lastAcc, acc, idxA, idxB);
 }
+
+__global__ void CalculateClosestApproachKernel(PartitionParameters pp, ApproachParameters ap)
+{
+    auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= pp.pairNum)
+        return;
+
+    unsigned idxA, idxB;
+    if (!GetPartitionMapPair(pp, idx, idxA, idxB))
+        return; // Should never happen
+}

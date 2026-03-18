@@ -35,6 +35,7 @@ target_sources(${NAME} PRIVATE
         fm_ref_sys_trans_test.cu
         fm_time_points_test.cu
         monte_carlo_test.cu
+        monte_carlo_utils_test.cu
         main.cu
 )
 

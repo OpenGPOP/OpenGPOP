@@ -153,7 +153,7 @@ struct HermitePolynomial {
     }
 
     // Evaluates the derivative of the polynomial (Velocity)
-    inline __host__ __device__ double deriv(double t_eval) const
+    inline __host__ __device__ double deriv(double t_eval)
     {
         double z[9] = { 0.0, 0.0, 0.0, dt, dt, dt, 2.0 * dt, 2.0 * dt, 2.0 * dt };
 
@@ -171,3 +171,63 @@ struct HermitePolynomial {
         return result;
     }
 };
+
+struct HermitePolynomial3D {
+    HermitePolynomial x;
+    HermitePolynomial y;
+    HermitePolynomial z;
+};
+
+struct ApproachFunc {
+    HermitePolynomial3D objA;
+    HermitePolynomial3D objB;
+
+    __host__ __device__ ApproachFunc(HermitePolynomial3D objA, HermitePolynomial3D objB)
+        : objA(objA)
+        , objB(objB)
+    {
+    }
+
+    // Calculates the dot product of the position difference and velocity difference at a given time
+    inline __host__ __device__ double operator()(double t)
+    {
+        double dx_t = objA.x(t) - objB.x(t);
+        double dy_t = objA.y(t) - objB.y(t);
+        double dz_t = objA.z(t) - objB.z(t);
+
+        double dx_dt = objA.x.deriv(t) - objB.x.deriv(t);
+        double dy_dt = objA.y.deriv(t) - objB.y.deriv(t);
+        double dz_dt = objA.z.deriv(t) - objB.z.deriv(t);
+
+        return (dx_t * dx_dt) + (dy_t * dy_dt) + (dz_t * dz_dt);
+    }
+};
+
+// Finds a root of the function f using the secant method
+template <typename Func>
+__host__ __device__ double FindRoot(
+    Func f, double x0, double x1, double tol = 1e-7, int max_iter = 100)
+{
+    double f0 = f(x0);
+    double f1 = f(x1);
+
+    for (int i = 0; i < max_iter; ++i) {
+        if (fabs(f1 - f0) < 1e-14) {
+            return x1;
+        }
+
+        double x_new = x1 - f1 * (x1 - x0) / (f1 - f0);
+        double f_new = f(x_new);
+
+        if (fabs(x_new - x1) < tol || fabs(f_new) < tol) {
+            return x_new;
+        }
+
+        x0 = x1;
+        f0 = f1;
+        x1 = x_new;
+        f1 = f_new;
+    }
+
+    return x1;
+}

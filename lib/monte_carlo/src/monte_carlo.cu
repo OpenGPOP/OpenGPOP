@@ -102,7 +102,7 @@ void ClosestApproach::Propagate(double stepSize, int numSteps)
     }
 }
 
-int ClosestApproach::CollectResults(double distanceThreshold, double* hostClosestDistances)
+int ClosestApproach::FindClosest(double distanceThreshold, double* hostClosestDistances)
 {
     return 0;
     // cudaError_t cudaStatus;
