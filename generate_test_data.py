@@ -1,173 +1,215 @@
-# INFO
-# This script reads real data from space-track.org for given NORAD Catalog ID,
-# start date and time span in days. Then it makes test sets with this data.
-# Each test data is written in one line in following format:
-# <epoch x> <epoch y> <epoch z> <epoch dx> <epoch dy> <epoch dz> <year> <month>
-# <day> <minute> <second> <delta seconds> <second x> <second y> <second z>
-# <sgp4 error>
-# where delta seconds is time from epoch to second position, sgp4 error is the
-# error of prediction calculated by sgp4 model from skyfield.
-#
-# Good parameters for testing:
-# --id 37849 --start 2019-05-05 --span 2.
-
-import argparse
-import requests
-import os
-import sys
-import json
-from datetime import datetime, timedelta
-from skyfield.api import EarthSatellite, load, utc
-from dotenv import load_dotenv
 import math
+import os
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from datetime import timedelta
 
-# Load credentials from .env
-load_dotenv()
-USERNAME = os.getenv('SPACETRACK_USERNAME')
-PASSWORD = os.getenv('SPACETRACK_PASSWORD')
+import numpy as np
+import orekit_jpype
+
+orekit_jpype.initVM()
+from astropy import units as u
+from astropy.coordinates import ITRS, GCRS, CartesianRepresentation, CartesianDifferential
+from astropy.time import Time
+from eof.download import download_eofs
+from org.hipparchus.geometry.euclidean.threed import Vector3D
+from org.hipparchus.ode.nonstiff import ClassicalRungeKuttaIntegrator
+from org.orekit.forces.gravity import HolmesFeatherstoneAttractionModel
+from org.orekit.forces.gravity.potential import GravityFieldFactory
+from org.orekit.frames import FramesFactory
+from org.orekit.orbits import CartesianOrbit, OrbitType
+from org.orekit.propagation import SpacecraftState
+from org.orekit.propagation.numerical import NumericalPropagator
+from org.orekit.time import AbsoluteDate, TimeScalesFactory
+from org.orekit.utils import IERSConventions
+from org.orekit.utils import PVCoordinates, Constants
+from tqdm import tqdm
+import orekit_jpype.pyhelpers
+
+# --- CONFIGURATION ---
+MISSION = 'S1A'
+START_DATE = datetime(2023, 5, 1)
+DAYS_TO_FETCH = 2
+MIN_PROPAGATION_HOURS = 2
+MAX_PROPAGATION_HOURS = 24
+OUTPUT_FILE = "data/state_vectors.txt"
+
+# Tell Orekit where the physics data zip file is
+data_file = os.path.join(os.getcwd(), 'orekit-data-main.zip')
+if not os.path.exists(data_file):
+    raise FileNotFoundError(f"Please download {data_file} and place it in this directory.")
+orekit_jpype.pyhelpers.setup_orekit_data(filenames=data_file)
 
 
-def calculate_distance_between(pos1, pos2):
-    return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2 + (pos1[2] - pos2[2]) ** 2)
+def fetch_and_convert_to_eci(start_date, days):
+    """Fetches Sentinel EOFs and converts ECEF to ECI (GCRS)."""
+    dates_to_fetch = [start_date + timedelta(days=i) for i in range(days)]
+    print(f"\n[1/3] Fetching {days} days of precise orbit files...")
+
+    # Fix applied: multiplying the MISSION string to match dates list length
+    downloaded_files = download_eofs(dates_to_fetch, missions=[MISSION] * len(dates_to_fetch), save_dir='.')
+
+    all_osvs = []
+    for eof_file_path in downloaded_files:
+        tree = ET.parse(eof_file_path)
+        root = tree.getroot()
+        all_osvs.extend(root.findall('.//OSV'))
+
+    eci_state_vectors = []
+
+    print(f"\n[2/3] Parsing {len(all_osvs)} state vectors and converting ECEF to ECI...")
+    for osv in tqdm(all_osvs, desc="Astropy Conversion", unit="vectors"):
+        utc_str = osv.find('UTC').text.replace('UTC=', '')
+
+        x, y, z = float(osv.find('X').text), float(osv.find('Y').text), float(osv.find('Z').text)
+        vx, vy, vz = float(osv.find('VX').text), float(osv.find('VY').text), float(osv.find('VZ').text)
+
+        t = Time(utc_str, format='isot', scale='utc')
+        itrs_pos = CartesianRepresentation(x=x * u.m, y=y * u.m, z=z * u.m)
+        itrs_vel = CartesianDifferential(d_x=vx * u.m / u.s, d_y=vy * u.m / u.s, d_z=vz * u.m / u.s, unit=u.m / u.s)
+
+        itrs_coord = ITRS(itrs_pos.with_differentials(itrs_vel), obstime=t)
+        gcrs_coord = itrs_coord.transform_to(GCRS(obstime=t))
+
+        eci_state_vectors.append({
+            'datetime': t.to_datetime(),
+            'pos': np.array([gcrs_coord.cartesian.x.value,
+                             gcrs_coord.cartesian.y.value,
+                             gcrs_coord.cartesian.z.value]),
+            'vel': np.array([gcrs_coord.cartesian.differentials['s'].d_x.to(u.m / u.s).value,
+                             gcrs_coord.cartesian.differentials['s'].d_y.to(u.m / u.s).value,
+                             gcrs_coord.cartesian.differentials['s'].d_z.to(u.m / u.s).value])
+        })
+
+    eci_state_vectors.sort(key=lambda x: x['datetime'])
+    return eci_state_vectors
 
 
-def fail(msg):
-    print(f"[ERROR] {msg}", file=sys.stderr)
-    sys.exit(1)
+# Force Model Imports
 
 
-def sat_from_json(entry):
-    tle1 = entry['TLE_LINE1']
-    tle2 = entry['TLE_LINE2']
+def calculate_orekit_error(dt_epoch: datetime,
+                           target_datetime: datetime,
+                           epoch_pos_eci: list,
+                           epoch_vel_eci: list,
+                           truth_pos_eci: list,
+                           mu: float = Constants.WGS84_EARTH_MU) -> float:
+    """
+    Propagates an initial state to a target datetime and calculates the norm
+    of the difference vector against a truth position. Forces are configured
+    internally via commenting/uncommenting
+    """
 
-    sat = EarthSatellite(tle1, tle2, entry.get(
-        'OBJECT_NAME', 'Unnamed'), ts)
-    return sat
+    # Setup Time and Dates
+    utc = TimeScalesFactory.getUTC()
+
+    def to_absolute_date(dt):
+        return AbsoluteDate(dt.year, dt.month, dt.day,
+                            dt.hour, dt.minute,
+                            float(dt.second) + dt.microsecond / 1e6,
+                            utc)
+
+    initial_date = to_absolute_date(dt_epoch)
+
+    final_date = to_absolute_date(target_datetime)
+
+    # Setup Frames and Initial State
+    eci_frame = FramesFactory.getGCRF()
+
+    pos_vec = Vector3D(float(epoch_pos_eci[0]), float(epoch_pos_eci[1]), float(epoch_pos_eci[2]))
+    vel_vec = Vector3D(float(epoch_vel_eci[0]), float(epoch_vel_eci[1]), float(epoch_vel_eci[2]))
+    initial_pv = PVCoordinates(pos_vec, vel_vec)
+
+    initial_orbit = CartesianOrbit(initial_pv, eci_frame, initial_date, mu)
+    initial_state = SpacecraftState(initial_orbit)
+
+    # Setup Integrator
+    fixed_step_size = 30.0
+    integrator = ClassicalRungeKuttaIntegrator(fixed_step_size)
+
+    propagator = NumericalPropagator(integrator)
+    propagator.setOrbitType(initial_orbit.getType())
+    # 4. Setup Propagator
+    propagator = NumericalPropagator(integrator)
+    propagator.setOrbitType(OrbitType.CARTESIAN)
+    propagator.setInitialState(initial_state)
+
+    # =========================================================================
+    # 5. CONFIGURE FORCES HERE
+    # =========================================================================
+
+    # --- A. Simple 2-Body Gravity ---
+    # propagator.addForceModel(NewtonianAttraction(mu))
+
+    # --- B. Complex Gravity Field (e.g., J2 to J70) ---
+    itrf = FramesFactory.getITRF(IERSConventions.IERS_2010, True)
+    gravity_provider = GravityFieldFactory.getNormalizedProvider(70, 70)  # Degree 70, Order 70
+    propagator.addForceModel(HolmesFeatherstoneAttractionModel(itrf, gravity_provider))
+
+    # --- C. Third-Body Perturbations ---
+    # propagator.addForceModel(ThirdBodyAttraction(CelestialBodyFactory.getSun()))
+    # propagator.addForceModel(ThirdBodyAttraction(CelestialBodyFactory.getMoon()))
+
+    # Propagate to Target Date
+    final_state = propagator.propagate(final_date)
+    final_pos_vec = final_state.getPVCoordinates().getPosition()
+
+    # Calculate Error Norm
+    truth_x, truth_y, truth_z = truth_pos_eci
+
+    dx = final_pos_vec.getX() - truth_x
+    dy = final_pos_vec.getY() - truth_y
+    dz = final_pos_vec.getZ() - truth_z
+
+    error_norm = math.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+
+    return error_norm
 
 
-# Parse CLI arguments
-parser = argparse.ArgumentParser(
-    description="Download and convert TLEs to state vectors.")
-parser.add_argument('--id', type=int, required=True,
-                    help='NORAD Catalog ID of the satellite')
-parser.add_argument('--start', type=str, default=datetime.utcnow().strftime(
-    '%Y-%m-%d'), help='Start date (YYYY-MM-DD)')
-parser.add_argument('--span', type=int, default=1, help='Time span in days')
-args = parser.parse_args()
+def generate_test_cases():
+    sv_list = fetch_and_convert_to_eci(START_DATE, DAYS_TO_FETCH)
+    if not sv_list:
+        return
 
-# Validate date
-try:
-    START_DATE = datetime.strptime(args.start, "%Y-%m-%d")
-except ValueError:
-    fail("Invalid date format. Use YYYY-MM-DD.")
+    step_size = 60 * 60  # skipping epochs to keep file size sane
+    epochs_to_test = list(range(0, len(sv_list), step_size))
 
-NORAD_ID = args.id
-DAYS = args.span
-END_DATE = START_DATE + timedelta(days=DAYS)
+    print(f"\n[3/3] Generating {len(epochs_to_test)} test cases with Orekit baseline...")
+    results = []
 
-# Check for .env credentials
-if not USERNAME or not PASSWORD:
-    fail("Missing SPACETRACK_USERNAME or SPACETRACK_PASSWORD in .env")
+    for i in tqdm(epochs_to_test, desc="Propagating Orbits", unit="case"):
+        epoch_sv = sv_list[i]
+        dt_epoch = epoch_sv['datetime']
 
-# Build URLs
-login_url = 'https://www.space-track.org/ajaxauth/login'
-query_url = (
-    'https://www.space-track.org/basicspacedata/query/class/omm'
-    f'/NORAD_CAT_ID/{NORAD_ID}'
-    f'/EPOCH/{START_DATE.strftime("%Y-%m-%d")
-    }--{END_DATE.strftime("%Y-%m-%d")}'
-    '/orderby/EPOCH asc/format/json'
-)
+        for j in range(i + 1, len(sv_list), step_size):
+            target_sv = sv_list[j]
+            time_from_epoch = target_sv['datetime'] - dt_epoch
+            hours_from_epoch = time_from_epoch.total_seconds() / 3600.0
 
-# Authenticate
-print("[INFO] Authenticating with Space-Track...")
-session = requests.Session()
-login_resp = session.post(
-    login_url, data={'identity': USERNAME, 'password': PASSWORD})
-if login_resp.status_code != 200:
-    fail(f"Login failed with status {
-    login_resp.status_code}: {login_resp.text}")
+            if MIN_PROPAGATION_HOURS <= hours_from_epoch <= MAX_PROPAGATION_HOURS:
+                baseline_err = calculate_orekit_error(
+                    dt_epoch, target_sv['datetime'],
+                    epoch_sv['pos'], epoch_sv['vel'], target_sv['pos']
+                )
 
-# Get data
-print("[INFO] Querying TLE data...")
-response = session.get(query_url)
-if response.status_code != 200:
-    fail(f"TLE data query failed with status {
-    response.status_code}: {response.text}")
+                results.append((
+                    epoch_sv['pos'][0], epoch_sv['pos'][1], epoch_sv['pos'][2],
+                    epoch_sv['vel'][0], epoch_sv['vel'][1], epoch_sv['vel'][2],
+                    dt_epoch.year, dt_epoch.month, dt_epoch.day,
+                    dt_epoch.hour, dt_epoch.minute, dt_epoch.second,
+                    time_from_epoch.total_seconds(),
+                    target_sv['pos'][0], target_sv['pos'][1], target_sv['pos'][2],
+                    baseline_err
+                ))
 
-try:
-    data = response.json()
-except json.JSONDecodeError as e:
-    fail(f"Failed to parse JSON: {
-    str(e)}\nRaw response:\n{response.text[:500]}")
+    # Write to a flat text file, space-separated, one case per line
+    with open(OUTPUT_FILE, 'w') as f:
+        for res in results:
+            line = " ".join(str(item) for item in res)
+            f.write(f"{line}\n")
 
-if not isinstance(data, list):
-    fail(f"Expected list of TLE entries, got: {type(data)}")
-if len(data) == 0:
-    fail("No TLE data returned for the specified date range.")
+    print(f"\nSuccess! Wrote {len(results)} test cases to {OUTPUT_FILE}")
 
-print(f"[INFO] Received {len(data)} TLE entries.")
 
-# Init Skyfield
-ts = load.timescale()
-results = []
-
-for i, entry in enumerate(data):
-    if i == 0:
-        continue
-    try:
-        # Calculate epoch data
-        epoch_sat = sat_from_json(data[i - 1])
-        epoch_str = data[i - 1]['EPOCH']
-        epoch_dt = datetime.fromisoformat(epoch_str).replace(tzinfo=utc)
-        epoch_t = ts.utc(epoch_dt)
-        epoch_geocentric = epoch_sat.at(epoch_t)
-        epoch_position = epoch_geocentric.position.m
-        epoch_velocity = epoch_geocentric.velocity.m_per_s
-
-        # Calculate second time point
-        after_time_str = entry['EPOCH']
-        sat = sat_from_json(entry)
-        dt = datetime.fromisoformat(after_time_str).replace(tzinfo=utc)
-        t = ts.utc(dt)
-        geocentric = sat.at(t)
-        dt = t.utc_datetime()
-
-        # Calculate real position
-        after_pos = geocentric.position.m
-
-        # Predict with sgp4 (earth satellites use sgp4 in .at() method)
-        predicted_geocentric = epoch_sat.at(t)
-        predicted_position = predicted_geocentric.position.m
-
-        sgp4_error = calculate_distance_between(predicted_position, after_pos)
-
-        time_from_epoch = dt - epoch_dt
-        results.append((
-            epoch_position[0], epoch_position[1], epoch_position[2],
-            epoch_velocity[0], epoch_velocity[1], epoch_velocity[2],
-            dt.year, dt.month, dt.day,
-            dt.hour, dt.minute, dt.second,
-            time_from_epoch.total_seconds(),
-            after_pos[0], after_pos[1], after_pos[2],
-            sgp4_error
-        ))
-
-    except Exception as e:
-        print(f"[WARNING] Failed to process TLE entry #{
-        i}: {e}", file=sys.stderr)
-        continue
-
-if not results:
-    fail("No valid state vectors generated. Exiting.")
-
-print("[INFO] Writing state vectors and time deltas to file...")
-try:
-    with open("data/state_vectors.txt", "w") as f:
-        for i, r in enumerate(results):
-            line = ' '.join(map(str, r)) + '\n'
-            f.write(line)
-except Exception as e:
-    fail(f"Failed to write output file: {str(e)}")
-
-print("[SUCCESS] File written: state_vectors.txt")
+if __name__ == "__main__":
+    generate_test_cases()

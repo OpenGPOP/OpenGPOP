@@ -5,7 +5,7 @@
 
 __global__ void TimePointParamsKernel(TimePointDatasets* datasets,
     TimePointTempParameters* tempParams, StartTime startTime, double stepSize, int arrayLength,
-    bool useMidpoints, int beforeEpoch);
+    bool useMidpoints, int beforeEpoch, TimePointParameters tpp);
 
 // This class is responsible for calculating and providing simulation
 // parameters that depend only on time

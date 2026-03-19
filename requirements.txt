@@ -1,6 +1,10 @@
 pandas
 matplotlib
 numpy
-skyfield
 dotenv
 requests
+sentineleof
+astropy>=6.0.0
+orekit-jpype[jdk4py]
+tqdm
+pymsofa
