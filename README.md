@@ -61,32 +61,39 @@ can run ninja targets directly.
 ## Ninja targets
 
 In the `build/` directory, you can use `ninja <target>` to build the chosen target. There are several targets available.
-Adding `.run` at the end of a target name automatically runs it after a successful build. To check for device memory leaks, use a `.memcheck` target.
+Adding `.run` at the end of a target name automatically runs it after a successful build. To check for device memory
+leaks, use a `.memcheck` target.
 
 - `exec` / `exec.run`
 - `unit_tests` / `unit_tests.run` / `unit_tests.memcheck`
 - `accuracy_tests` / `accuracy_tests.run`
 
+## Accuracy tests
 
-# OLD ENTRIES - TO BE VERIFIED
+accuracy_tests target tests gpu propagator using real world data. To perform the tests, test cases needs to be generated
+using [generate_test_data.py](generate_test_data.py) script.
+It fetches real-world, centimeter-level accuracy telemetry from ESA's Sentinel-1 mission and establishes a numerical
+baseline using Orekit.
 
-### Accuracy tests
+The script does the following:
 
-accuracy_tests target tests the cpu and gpu propagators using real world data. To perform the tests, test cases needs to
-be generated using [generate_test_data.py](generate_test_data.py) script. The script fetches data from
-[space-track.org](https://www.space-track.org/) and writes test cases to data/state_vectors.txt. **The script needs .env
-file with credentials to space-track**. Required fields are as follows: **SPACETRACK_USERNAME** and
-**SPACETRACK_PASSWORD**.
+1. Downloads historical Precise Orbit Ephemerides (`.EOF` files) from the Copernicus ecosystem.
+2. Uses `astropy` to precisely convert the downloaded state vectors from Earth-Fixed (ITRS) to Inertial (GCRS).
+3. Uses `orekit` (via JPype) with a 70x70 spherical harmonics gravity model and a fixed-step RK4 integrator to propagate
+   the orbit and calculate a baseline numerical error.
+4. Saves the results as a flat, space-separated text file (`data/state_vectors.txt`) optimized for fast `std::ifstream`
+   parsing in C++.
 
-## Python visualisation
+### Requirements & Setup
 
-After running the `cpu` target, you can visualise the output using python. The `cmake --preset build` command
-automatically creates and sets up the virtual environment inside the `.venv` directory.
+Python dependencies (such as `orekit-jpype`, `astropy`, and `sentineleof`) are downloaded automatically to virtual
+environment during project setup (`cmake --preset build`)
 
-To run the visualisation simply use:
+**Important Data Dependency:** Orekit requires physical models (gravity fields, JPL ephemerides, IERS Earth rotation
+data) to run. You must download [orekit-data-main.zip](https://gitlab.orekit.org/orekit/orekit-data) and place it in the
+same directory as the script. **Do not unzip this file**; JPype will mount it directly into the JVM.
 
-```
-.venv/bin/python3 visualisation.py
-```
+### Output Format
 
-If the `requirements.txt` file changes, run `rm -rf .venv && cmake --preset build` to reinstall the virtual environment.
+Each line in the generated text file represents a single test case, formatted exactly as follows:
+`x0 y0 z0 vx0 vy0 vz0 year month day hour minute second dt_seconds target_x target_y target_z baseline_error_meters`

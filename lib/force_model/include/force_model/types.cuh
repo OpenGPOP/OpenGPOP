@@ -9,6 +9,7 @@ struct TimePointParameters {
     // (GCRS) transformation matrix. The inverse transformation (GCRS to ITRS) is the transpose of
     // this matrix, since it's orthogonal.
     double* ITRS_to_GCRS = nullptr;
+    double* mjd = nullptr;
 };
 
 struct TimePointTempParameters {

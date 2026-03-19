@@ -23,7 +23,6 @@ target_sources(${NAME} PRIVATE
 target_link_libraries(${NAME}
         gpu_propagator
         force_model
-        propagator
         progressbar
 )
 

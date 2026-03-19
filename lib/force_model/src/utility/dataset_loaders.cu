@@ -1,3 +1,4 @@
+#include "force_model/constants.cuh"
 #include "force_model/utility/dataset_loaders.cuh"
 #include "force_model/utility/ref_sys_trans.cuh"
 #include "gpu_utils/gpu_utils.cuh"
@@ -122,10 +123,10 @@ EOPDataset LoadEOPData(const std::string& filepath)
             records[i].mjd_utc = std::stod(line.substr(7, 8));
 
             // Extract Bull. A PM-x (Cols 19-27 -> 0-indexed 18, length 9)
-            records[i].xp = std::stod(line.substr(18, 9));
+            records[i].xp = std::stod(line.substr(18, 9)) / CFMConst::ArcsPerRad;
 
             // Extract Bull. A PM-y (Cols 38-46 -> 0-indexed 37, length 9)
-            records[i].yp = std::stod(line.substr(37, 9));
+            records[i].yp = std::stod(line.substr(37, 9)) / CFMConst::ArcsPerRad;
 
             // Extract Bull. A UT1-UTC (Cols 59-68 -> 0-indexed 58, length 10)
             records[i].ut1_utc = std::stod(line.substr(58, 10));

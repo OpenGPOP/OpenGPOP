@@ -5,10 +5,11 @@
 #include "force_model/utility/ref_sys_trans.cuh"
 #include "gpu_utils/gpu_utils.cuh"
 #include <cstring>
+#include <cuda_runtime_api.h>
 
 __global__ void TimePointParamsKernel(TimePointDatasets* datasets,
     TimePointTempParameters* tempParams, StartTime startTime, double stepSize, int arrayLength,
-    bool useMidpoints, int beforeEpoch)
+    bool useMidpoints, int beforeEpoch, TimePointParameters tpp)
 {
     int tIdx = blockIdx.x * blockDim.x + threadIdx.x;
     if (tIdx >= arrayLength)
@@ -27,7 +28,9 @@ __global__ void TimePointParamsKernel(TimePointDatasets* datasets,
     double mjd_UTC
         = RefSysTrans::CalendarToMJD(startTime.Year, startTime.Month, startTime.Day, startTime.Hour,
             startTime.Min, startTime.Sec - (double)beforeEpoch * stepSize + timeFromStart);
+    tpp.mjd[tIdx] = mjd_UTC;
 
+    // 60063.9581249998
     EOPRecord eop_record = datasets->eopDataset.getRecord(mjd_UTC);
     double mjd_UT1 = RefSysTrans::MJD_UTCtoUT1(mjd_UTC, eop_record);
     double mjd_TT = RefSysTrans::MJD_UTCtoTT(mjd_UTC, datasets->lsDataset);
@@ -115,7 +118,7 @@ void FMTimePoints::CalculateParameters(int arrayLength, bool useMidpoints, int b
     int threadsPerBlock = 256;
     int blockCount = arrayLength / threadsPerBlock + 1;
     TimePointParamsKernel<<<blockCount, threadsPerBlock>>>(_devDatasets, _devTempInitParameters,
-        _startTime, _stepSize, arrayLength, useMidpoints, beforeEpoch);
+        _startTime, _stepSize, arrayLength, useMidpoints, beforeEpoch, _timePointParameters);
     gpuErrchk(cudaGetLastError());
     gpuErrchk(cudaDeviceSynchronize());
 
@@ -183,7 +186,8 @@ void FMTimePoints::ComputeITRStoGCRS(int arrayLength)
 
 TimePointParameters FMTimePoints::GetParametersDev(int stepNum)
 {
-    return { .ITRS_to_GCRS = _timePointParameters.ITRS_to_GCRS + stepNum * 9 };
+    return { .ITRS_to_GCRS = _timePointParameters.ITRS_to_GCRS + stepNum * 9,
+        .mjd = _timePointParameters.mjd + stepNum };
 }
 
 void FMTimePoints::FreeDatasets()
@@ -205,6 +209,7 @@ void FMTimePoints::FreeDatasets()
 void FMTimePoints::AllocateParameters(int arrayLength)
 {
     gpuErrchk(cudaMalloc(&_timePointParameters.ITRS_to_GCRS, sizeof(double) * 3 * 3 * arrayLength));
+    gpuErrchk(cudaMalloc(&_timePointParameters.mjd, sizeof(double) * arrayLength));
     gpuErrchk(cudaMalloc(&_devTimePointParameters, sizeof(TimePointParameters)));
 
     // Copy the struct to device
@@ -215,6 +220,7 @@ void FMTimePoints::AllocateParameters(int arrayLength)
 void FMTimePoints::FreeParameters()
 {
     CUDA_SAFE_FREE(_timePointParameters.ITRS_to_GCRS);
+    CUDA_SAFE_FREE(_timePointParameters.mjd);
     CUDA_SAFE_FREE(_devTimePointParameters);
 }
 
