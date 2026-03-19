@@ -34,6 +34,8 @@ target_sources(${NAME} PRIVATE
         force_model_test.cu
         fm_ref_sys_trans_test.cu
         fm_time_points_test.cu
+        closest_approach_test.cu
+        closest_approach_utils_test.cu
         main.cu
 )
 
@@ -51,4 +53,5 @@ target_link_libraries(${NAME}
         gpu_propagator
         gpu_utils
         sofa
+        closest_approach
 )

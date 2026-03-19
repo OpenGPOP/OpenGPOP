@@ -1,4 +1,5 @@
-#include "monte_carlo/monte_carlo.cuh"
+#include "closest_approach/closest_approach.cuh"
+#include "force_model/force_model.cuh"
 #include "perturbation_generator/perturbation_generator.cuh"
 #include <iostream>
 
@@ -12,7 +13,7 @@ void PrintSatellites(double* positionsHost, double* velocitiesHost, int numSatel
     }
 }
 
-int main()
+void doWork()
 {
     cublasHandle_t handle;
     cublasErrchk(cublasCreate(&handle));
@@ -48,42 +49,55 @@ int main()
     params.StartTimeUTC.Min = 22;
     params.StartTimeUTC.Sec = 2;
 
-    params.Area_drag = 55.64;
-    params.Area_solar = 88.4;
-    params.mass = 8000.0;
-    params.CR = 1.0;
-    params.CD = 2.7;
-    params.n = 70;
-    params.m = 70;
-    params.Drag = false;
-
-    params.Moon = false;
-    params.Sun = false;
-    params.Relativity = false;
-    params.SRad = false;
-
     size_t limit;
     gpuErrchk(cudaDeviceGetLimit(&limit, cudaLimitMallocHeapSize));
     std::cout << "The heap size limit is: " << limit << std::endl;
 
-    const int numSteps = 50;
+    const int numSteps = 10;
+    const double stepSize = 30.0;
 
-    MonteCarlo monteCarlo(
-        &handle, &params, positions, velocities, numSatellites, 120.0, numSteps, 10.0);
+    ForceModel forceModel(&handle, numSatellites, 1.0, &params);
+    ClosestApproach closestApproach(&handle, &params, forceModel, stepSize);
 
-    monteCarlo.CoarsePropagationPhase();
-    monteCarlo.FinePropagationPhase();
+    // initialize vectors with data
+    std::vector<double> positionsVec(positionsHost, positionsHost + numSatellites * 3);
+    std::vector<double> velocitiesVec(velocitiesHost, velocitiesHost + numSatellites * 3);
+    std::vector<unsigned int> setIndicesVec(numSatellites);
+    for (int i = 0; i < numSatellites; ++i) {
+        setIndicesVec[i] = i / 4; // Group satellites in sets of 4
+    }
+    closestApproach.Initialize(positionsVec, velocitiesVec, setIndicesVec);
 
-    double threshold = 10'000.0; // [m]
-    int count = monteCarlo.CollectResults(threshold);
-    std::cout << "Number of satellites closer than " << threshold << " m: " << count << std::endl;
+    closestApproach.Propagate(numSteps, true);
+    ClosestApproachData data;
+    closestApproach.FindClosest(data);
+
+    // Iterate through all possible pairs
+    for (int i = 0; i < numSatellites; ++i) {
+        for (int j = i + 1; j < numSatellites; ++j) {
+            // Only print pairs that belong to different sets
+            if (setIndicesVec[i] != setIndicesVec[j]) {
+                std::cout << "Pair " << i << "-" << j << ": Distance = " << data.Get(i, j).distance
+                          << " m, Time = " << data.Get(i, j).time << " s\n";
+            }
+        }
+    }
 
     cudaFree(positions);
     cudaFree(velocities);
-
-    cublasDestroy(handle);
-
     delete[] positionsHost;
     delete[] velocitiesHost;
+    cublasDestroy(handle);
+}
+
+int main()
+{
+    // Separate function to ensure proper cleanup of resources (in destructors) before exiting
+    doWork();
+
+    // Check for uncaught errors
+    gpuErrchk(cudaGetLastError());
+    cudaDeviceReset();
+
     return 0;
 }

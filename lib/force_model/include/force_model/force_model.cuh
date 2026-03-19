@@ -11,7 +11,7 @@
 
 class ForceModel : public IForceModel {
 public:
-    ForceModel(cublasHandle_t* handle, int numEntities, double stepSize,
+    ForceModel(cublasHandle_t* handle, unsigned numEntities, double stepSize,
         FullPerturbationParameters* params)
         : _handle(handle)
         , _params(params)
@@ -47,24 +47,19 @@ public:
     // Correction and propagation phases
 
     // This method should be called after the generation phase and before the correction and
-    // propagation phases. The device pointers passed here are not managed by this class and should
-    // be allocated and freed by the caller.
+    // propagation phases.
     void InitializePropagation(int beforeEpoch, int afterEpoch) override;
 
-    // This method overwrites the last column of the acceleration matrix
+    // This method overwrites the last column of the acceleration matrix. The device pointers passed
+    // here are not managed by this class and should be allocated and freed by the caller.
     void ComputePropagationAcceleration(double* devPosition, double* devVelocity,
         double* devAcceleration, int stepNum, int returnColumnIndex) override;
 
 private:
     cublasHandle_t* _handle;
     FullPerturbationParameters* _params;
-    int _numEntities;
+    unsigned _numEntities;
     double _stepSize;
-
-    // double* _devPosition;
-    // double* _devVelocity;
-    // double* _devAcceleration;
-    // int _accelerationColumnsCount;
 
     // Matrices used to store acceleration from different sources, which are then summed
     double* _devAccelerationSumMatrix = nullptr;
