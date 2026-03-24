@@ -50,8 +50,9 @@ public:
     // velocities vectors must be of the same size. The setIndices vector must be of size equal to
     // the number of entities. The indices must start from 0 and the difference between consecutive
     // indices cannot exceed 1.
-    void Initialize(std::vector<double>& positions, std::vector<double>& velocities,
-        std::vector<unsigned>& setIndices);
+    void Initialize(const std::vector<std::array<double, 3>>& positions,
+        const std::vector<std::array<double, 3>>& velocities,
+        const std::vector<unsigned>& setIndices);
 
     // Propagates the objects for the specified number of steps with the given step size. On
     // subsequent calls, the propagation will continue from the last state.

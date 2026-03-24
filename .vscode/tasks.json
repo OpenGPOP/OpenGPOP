@@ -6,7 +6,7 @@
             "type": "shell",
             "command": "ninja unit_tests",
             "options": {
-                "cwd": "${workspaceFolder}/build"
+                "cwd": "${workspaceFolder}/build-debug"
             },
             "group": {
                 "kind": "build",
@@ -18,7 +18,7 @@
             "type": "shell",
             "command": "ninja exec",
             "options": {
-                "cwd": "${workspaceFolder}/build"
+                "cwd": "${workspaceFolder}/build-debug"
             },
             "group": {
                 "kind": "build",
@@ -28,7 +28,7 @@
         {
             "label": "CMake Build",
             "type": "shell",
-            "command": "cmake --preset build",
+            "command": "cmake --preset debug",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -40,7 +40,7 @@
         {
             "label": "CMake Clean Build",
             "type": "shell",
-            "command": "rm -rf build && cmake --preset build",
+            "command": "rm -rf build-debug && cmake --preset debug",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -49,17 +49,5 @@
                 "isDefault": false
             }
         },
-        {
-            "label": "Build accuracy tests",
-            "type": "shell",
-            "command": "ninja accuracy_tests",
-            "options": {
-                "cwd": "${workspaceFolder}/build"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            }
-        }
     ]
 }

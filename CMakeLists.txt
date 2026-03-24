@@ -3,12 +3,16 @@ cmake_minimum_required(VERSION 3.20)
 project(OpenGPOP LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_BUILD_TYPE Debug)
+
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif ()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 enable_language(CUDA)
-set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_ARCHITECTURES "native")
+set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -O0 -g")
 find_package(CUDAToolkit REQUIRED)
 
@@ -19,8 +23,28 @@ FetchContent_Declare(
         GIT_TAG v1.14.0
 )
 FetchContent_MakeAvailable(googletest)
-
 enable_testing()
+
+FetchContent_Declare(
+        cli11
+        GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+        GIT_TAG v2.6.2
+)
+FetchContent_MakeAvailable(cli11)
+
+FetchContent_Declare(
+        json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.12.0
+)
+FetchContent_MakeAvailable(json)
+
+FetchContent_Declare(
+        indicators
+        GIT_REPOSITORY https://github.com/p-ranav/indicators.git
+        GIT_TAG v2.3
+)
+FetchContent_MakeAvailable(indicators)
 
 set(SOFA_DIR "${CMAKE_SOURCE_DIR}/unit_tests/sofa")
 if (NOT EXISTS "${SOFA_DIR}")
@@ -82,30 +106,6 @@ target_include_directories(sofa INTERFACE "${SOFA_DIR}/src")
 
 # =====================================================================
 
-set(VENV_DIR "${CMAKE_SOURCE_DIR}/.venv")
-if (NOT EXISTS "${VENV_DIR}/bin/activate")
-    message(STATUS "Creating Python virtual environment at ${VENV_DIR}")
-    execute_process(
-            COMMAND python3 -m venv ${VENV_DIR}
-            RESULT_VARIABLE VENV_RESULT
-    )
-    if (NOT VENV_RESULT EQUAL 0)
-        message(FATAL_ERROR "Failed to create Python virtual environment.")
-    endif ()
-
-    set(PIP_EXECUTABLE "${VENV_DIR}/bin/pip")
-    message(STATUS "Installing Python dependencies from requirements.txt")
-    execute_process(
-            COMMAND "${PIP_EXECUTABLE}" install --upgrade pip
-            COMMAND "${PIP_EXECUTABLE}" install -r "${CMAKE_SOURCE_DIR}/requirements.txt"
-            RESULT_VARIABLE PIP_RESULT
-    )
-    if (NOT PIP_RESULT EQUAL 0)
-        message(FATAL_ERROR "Failed to install Python dependencies.")
-    endif ()
-endif ()
-
 add_subdirectory(exec)
 add_subdirectory(lib)
 add_subdirectory(unit_tests)
-add_subdirectory(accuracy_tests)

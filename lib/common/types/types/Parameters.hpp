@@ -16,11 +16,11 @@
 
 #pragma once
 
-struct StartTime {
+struct TimeData {
     int Year, Month, Day, Hour, Min;
     double Sec;
 };
 
 struct FullPerturbationParameters {
-    StartTime StartTimeUTC;
+    TimeData StartTimeUTC;
 };

@@ -30,7 +30,7 @@
 extern void ExpectMatricesNear(
     const double* actual_matrix, double sofa_matrix[3][3], double tolerance = 1e-12);
 
-void GetSofaITRStoGCRS(StartTime defaultStartTime, double result[3][3])
+void GetSofaITRStoGCRS(TimeData defaultStartTime, double result[3][3])
 {
     double djm0, djm;
     iauCal2jd(defaultStartTime.Year, defaultStartTime.Month, defaultStartTime.Day, &djm0, &djm);
@@ -74,7 +74,7 @@ void GetSofaITRStoGCRS(StartTime defaultStartTime, double result[3][3])
 class ForceModelTimePointsTest : public ::testing::Test {
 protected:
     cublasHandle_t cublasHandle;
-    StartTime defaultStartTime {
+    TimeData defaultStartTime {
         .Year = 2025, .Month = 10, .Day = 22, .Hour = 11, .Min = 0, .Sec = 0.0
     };
     double defaultStepSize = 30;
@@ -151,7 +151,7 @@ TEST_F(ForceModelTimePointsTest, GetMultipleParametersSequence)
         cudaMemcpy(&ITRS_to_GCRS_host, paramsDev.ITRS_to_GCRS, sizeof(ITRS_to_GCRS_host),
             cudaMemcpyDeviceToHost);
 
-        StartTime currentStartTime = defaultStartTime;
+        TimeData currentStartTime = defaultStartTime;
         currentStartTime.Sec += i * stepSize;
 
         double sofa_matrix[3][3];
@@ -180,7 +180,7 @@ TEST_F(ForceModelTimePointsTest, GetMultipleParametersSequenceBeforeEpoch)
         cudaMemcpy(&ITRS_to_GCRS_host, paramsDev.ITRS_to_GCRS, sizeof(ITRS_to_GCRS_host),
             cudaMemcpyDeviceToHost);
 
-        StartTime currentStartTime = defaultStartTime;
+        TimeData currentStartTime = defaultStartTime;
         currentStartTime.Sec += (i - beforeEpoch) * stepSize;
 
         double sofa_matrix[3][3];
@@ -215,7 +215,7 @@ TEST_F(ForceModelTimePointsTest, GetMultipleParametersSequenceWithMidpoints)
         double timeFromStart
             = ((double)(i / midpointCount) + host_rk8Midpoints[midpointIndex]) * stepSize;
 
-        StartTime currentStartTime = defaultStartTime;
+        TimeData currentStartTime = defaultStartTime;
         currentStartTime.Sec += timeFromStart;
 
         double sofa_matrix[3][3];

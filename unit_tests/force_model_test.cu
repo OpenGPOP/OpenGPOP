@@ -60,20 +60,6 @@ TEST_F(ForceModelTest, SameResultsForAllSatellites)
     params.StartTimeUTC.Min = 22;
     params.StartTimeUTC.Sec = 2;
 
-    params.Area_drag = 55.64;
-    params.Area_solar = 88.4;
-    params.mass = 8000.0;
-    params.CR = 1.0;
-    params.CD = 2.7;
-    params.n = 70;
-    params.m = 70;
-    params.Drag = false;
-
-    params.Moon = false;
-    params.Sun = false;
-    params.Relativity = false;
-    params.SRad = false;
-
     ForceModel forceModel(&_cublasHandle, numSatellites, stepSize, &params);
     int numSteps = 10;
     forceModel.PreInitialize();

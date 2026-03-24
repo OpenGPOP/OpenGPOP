@@ -20,14 +20,14 @@
 #include "force_model/types.cuh"
 
 __global__ void TimePointParamsKernel(TimePointDatasets* datasets,
-    TimePointTempParameters* tempParams, StartTime startTime, double stepSize, int arrayLength,
+    TimePointTempParameters* tempParams, TimeData startTime, double stepSize, int arrayLength,
     bool useMidpoints, int beforeEpoch, TimePointParameters tpp);
 
 // This class is responsible for calculating and providing simulation
 // parameters that depend only on time
 class FMTimePoints : public IFMTimePoints {
 public:
-    FMTimePoints(cublasHandle_t* cublasHandle, double stepSize, StartTime startTime)
+    FMTimePoints(cublasHandle_t* cublasHandle, double stepSize, TimeData startTime)
         : _cublasHandle(cublasHandle)
         , _stepSize(stepSize)
         , _startTime(startTime)
@@ -47,7 +47,7 @@ public:
 private:
     cublasHandle_t* _cublasHandle;
     double _stepSize;
-    StartTime _startTime;
+    TimeData _startTime;
 
     TimePointDatasets _datasets;
     TimePointDatasets* _devDatasets = nullptr;

@@ -50,8 +50,8 @@ TEST_F(ClosestApproachTest, InitializeAllocatesMemoryWithoutCrashing)
     MockForceModel forceModel(numSatellites, stepSize, noAccel);
     ClosestApproach ca(&cublasHandle, &params, forceModel, stepSize);
 
-    std::vector<double> pos = { 0.0, 0.0, 0.0, 10.0, 10.0, 10.0 };
-    std::vector<double> vel = { 1.0, 0.0, 0.0, -1.0, 0.0, 0.0 };
+    std::vector<std::array<double, 3>> pos = { {0.0, 0.0, 0.0}, {10.0, 10.0, 10.0} };
+    std::vector<std::array<double, 3>> vel = { {1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0} };
     std::vector<unsigned> sets = { 0, 1 };
 
     EXPECT_NO_THROW(ca.Initialize(pos, vel, sets));
@@ -68,8 +68,8 @@ TEST_F(ClosestApproachTest, PropagateHeadOnCollision)
 
     // Entity 0: at origin, moving +X at 1 m/s
     // Entity 1: at X=10, moving -X at 1 m/s
-    std::vector<double> pos = { 0.0, 0.0, 0.0, 10.0, 0.0, 0.0 };
-    std::vector<double> vel = { 1.0, 0.0, 0.0, -1.0, 0.0, 0.0 };
+    std::vector<std::array<double, 3>> pos = { {0.0, 0.0, 0.0}, {10.0, 0.0, 0.0} };
+    std::vector<std::array<double, 3>> vel = { {1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0} };
     std::vector<unsigned> sets = { 0, 1 };
 
     ca.Initialize(pos, vel, sets);
@@ -98,8 +98,8 @@ TEST_F(ClosestApproachTest, ParallelTrajectoriesMaintainDistance)
 
     // Entity 0: at origin, moving +Y at 2 m/s
     // Entity 1: at X=5, moving +Y at 2 m/s
-    std::vector<double> pos = { 0.0, 0.0, 0.0, 5.0, 0.0, 0.0 };
-    std::vector<double> vel = { 0.0, 2.0, 0.0, 0.0, 2.0, 0.0 };
+    std::vector<std::array<double, 3>> pos = { {0.0, 0.0, 0.0}, {5.0, 0.0, 0.0} };
+    std::vector<std::array<double, 3>> vel = { {0.0, 2.0, 0.0}, {0.0, 2.0, 0.0} };
     std::vector<unsigned> sets = { 0, 1 };
 
     ca.Initialize(pos, vel, sets);
@@ -128,8 +128,8 @@ TEST_F(ClosestApproachTest, MultiplePropagationPhasesReturnGlobalMinimum)
 
     // Entity 0: at origin, stationary
     // Entity 1: at X=10, moving -X at 1 m/s
-    std::vector<double> pos = { 0.0, 0.0, 0.0, 10.0, 0.0, 0.0 };
-    std::vector<double> vel = { 0.0, 0.0, 0.0, -1.0, 0.0, 0.0 };
+    std::vector<std::array<double,3>> pos = { {0.0, 0.0, 0.0}, {10.0, 0.0, 0.0} };
+    std::vector<std::array<double,3>> vel = { {0.0, 0.0, 0.0}, {-1.0, 0.0, 0.0} };
     std::vector<unsigned> sets = { 0, 1 };
 
     ca.Initialize(pos, vel, sets);
@@ -167,8 +167,8 @@ TEST_F(ClosestApproachTest, ClosestApproachBetweenStepsNonZero)
 
     // Entity 0: at origin, stationary
     // Entity 1: starts at X=0.5, Y=3.0, moving -X at 2 m/s
-    std::vector<double> pos = { 0.0, 0.0, 0.0, 0.5, 3.0, 0.0 };
-    std::vector<double> vel = { 0.0, 0.0, 0.0, -2.0, 0.0, 0.0 };
+    std::vector<std::array<double, 3>> pos = { {0.0, 0.0, 0.0}, {0.5, 3.0, 0.0} };
+    std::vector<std::array<double, 3>> vel = { {0.0, 0.0, 0.0}, {-2.0, 0.0, 0.0} };
     std::vector<unsigned> sets = { 0, 1 };
 
     ca.Initialize(pos, vel, sets);
@@ -198,15 +198,15 @@ TEST_F(ClosestApproachTest, MultiObjectSetsEvaluateCorrectPairs)
     // Entity 0 (Set 0): at origin, stationary
     // Entity 1 (Set 1): starts at X=10, Y=5, Z=0, moving -X at 1 m/s
     // Entity 2 (Set 1): starts at X=3, Y=0, Z=8, moving -Z at 2 m/s
-    std::vector<double> pos = {
-        0.0, 0.0, 0.0, // Entity 0
-        10.0, 5.0, 0.0, // Entity 1
-        3.0, 0.0, 8.0 // Entity 2
+    std::vector<std::array<double, 3>> pos = {
+        {0.0, 0.0, 0.0}, // Entity 0
+        {10.0, 5.0, 0.0}, // Entity 1
+        {3.0, 0.0, 8.0} // Entity 2
     };
-    std::vector<double> vel = {
-        0.0, 0.0, 0.0, // Entity 0
-        -1.0, 0.0, 0.0, // Entity 1
-        0.0, 0.0, -2.0 // Entity 2
+    std::vector<std::array<double, 3>> vel = {
+        {0.0, 0.0, 0.0}, // Entity 0
+        {-1.0, 0.0, 0.0}, // Entity 1
+        {0.0, 0.0, -2.0} // Entity 2
     };
     std::vector<unsigned> sets = { 0, 1, 1 };
 

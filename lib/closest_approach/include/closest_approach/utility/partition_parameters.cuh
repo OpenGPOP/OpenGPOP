@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstring>
+#include <cuda_runtime.h>
 #include <vector>
 
 struct PartitionParameters {

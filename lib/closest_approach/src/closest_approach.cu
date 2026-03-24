@@ -18,9 +18,9 @@
 #include "closest_approach/utility/partition_parameters.cuh"
 #include "gpu_propagator/gpu_propagator.cuh"
 #include "gpu_utils/gpu_utils.cuh"
+#include <array>
 #include <cassert>
 #include <cstdio>
-#include <cstdlib>
 #include <cuda_runtime_api.h>
 #include <driver_types.h>
 
@@ -43,17 +43,16 @@ ClosestApproach::~ClosestApproach()
     _hostPartitionParams.hostFree();
 }
 
-void ClosestApproach::Initialize(std::vector<double>& positions, std::vector<double>& velocities,
-    std::vector<unsigned>& setIndices)
+void ClosestApproach::Initialize(const std::vector<std::array<double, 3>>& positions,
+    const std::vector<std::array<double, 3>>& velocities, const std::vector<unsigned>& setIndices)
 {
     // Initialization should be called only once
     assert(_numEntities == 0);
 
     // Check input sanity
-    assert(positions.size() > 0);
-    assert(positions.size() % 3 == 0);
+    assert(!positions.empty());
     assert(positions.size() == velocities.size());
-    assert(positions.size() == setIndices.size() * 3);
+    assert(positions.size() == setIndices.size());
     _numEntities = setIndices.size();
 
     // Calculate partition parameters, save to _hostPartitionParams
@@ -82,11 +81,11 @@ void ClosestApproach::Initialize(std::vector<double>& positions, std::vector<dou
         sizeof(unsigned) * _hostPartitionParams.numSets, cudaMemcpyHostToDevice));
 
     // Allocate device memory and copy position and velocity data
-    gpuErrchk(cudaMalloc(&_devPositions, sizeof(double) * positions.size()));
-    gpuErrchk(cudaMalloc(&_devVelocities, sizeof(double) * velocities.size()));
-    gpuErrchk(cudaMemcpy(_devPositions, positions.data(), sizeof(double) * positions.size(),
+    gpuErrchk(cudaMalloc(&_devPositions, 3 * sizeof(double) * positions.size()));
+    gpuErrchk(cudaMalloc(&_devVelocities, 3 * sizeof(double) * velocities.size()));
+    gpuErrchk(cudaMemcpy(_devPositions, positions.data(), 3 * sizeof(double) * positions.size(),
         cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(_devVelocities, velocities.data(), sizeof(double) * velocities.size(),
+    gpuErrchk(cudaMemcpy(_devVelocities, velocities.data(), 3 * sizeof(double) * velocities.size(),
         cudaMemcpyHostToDevice));
 
     // Allocate memory for results
