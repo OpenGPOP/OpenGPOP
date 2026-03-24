@@ -19,6 +19,7 @@ struct PropagationOutput {
     std::vector<std::array<double, 3>> velocitiesStart;
     std::vector<std::array<double, 3>> positionsEnd;
     std::vector<std::array<double, 3>> velocitiesEnd;
+    long calculationTimeSeconds;
 };
 
 struct ClosestApproachInput {
@@ -40,6 +41,7 @@ struct ClosestApproachOutput {
     std::vector<std::array<double, 3>> positionsStart;
     std::vector<std::array<double, 3>> velocitiesStart;
     std::vector<ClosestApproachRecord> closestApproaches;
+    long calculationTimeSeconds;
 };
 
 PropagationOutput propagate(const PropagationInput& input);

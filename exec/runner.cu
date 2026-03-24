@@ -14,6 +14,7 @@ PropagationOutput propagate(const PropagationInput& input)
     double stepSize = input.propagationSeconds / static_cast<double>(numStepsToFirst);
     int totalSteps = numStepsToFirst;
 
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     FullPerturbationParameters parameters { input.propagationStart };
 
     cublasHandle_t handle;
@@ -31,7 +32,6 @@ PropagationOutput propagate(const PropagationInput& input)
     cudaMemcpy(devVelocity, input.velocities.data(), input.velocities.size() * 3 * sizeof(double),
         cudaMemcpyHostToDevice);
 
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
     GpuPropagator propagator(
         devPosition, devVelocity, 1, &handle, stepSize, &parameters, forceModel, totalSteps, 7);
@@ -67,7 +67,7 @@ PropagationOutput propagate(const PropagationInput& input)
     cudaFree(devVelocity);
 
     return { input.propagationStart, input.propagationSeconds, input.positions, input.velocities,
-        positionsEnd, velocitiesEnd };
+        positionsEnd, velocitiesEnd , elapsed};
 }
 
 ClosestApproachOutput closestApproach(const ClosestApproachInput& input)
@@ -81,6 +81,7 @@ ClosestApproachOutput closestApproach(const ClosestApproachInput& input)
 
     FullPerturbationParameters params { .StartTimeUTC = input.propagationStart };
 
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     ForceModel forceModel(&handle, input.positions.size(), 1.0, &params);
     ClosestApproach closestApproach(&handle, &params, forceModel, stepSize);
 
@@ -102,6 +103,9 @@ ClosestApproachOutput closestApproach(const ClosestApproachInput& input)
         }
     }
 
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin).count();
+
     cublasDestroy(handle);
 
     return {
@@ -110,5 +114,6 @@ ClosestApproachOutput closestApproach(const ClosestApproachInput& input)
         .positionsStart = input.positions,
         .velocitiesStart = input.velocities,
         .closestApproaches = records,
+        .calculationTimeSeconds = elapsed
     };
 }
