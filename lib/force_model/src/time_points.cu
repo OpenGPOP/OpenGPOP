@@ -24,7 +24,7 @@
 #include <cuda_runtime_api.h>
 
 __global__ void TimePointParamsKernel(TimePointDatasets* datasets,
-    TimePointTempParameters* tempParams, StartTime startTime, double stepSize, int arrayLength,
+    TimePointTempParameters* tempParams, TimeData startTime, double stepSize, int arrayLength,
     bool useMidpoints, int beforeEpoch, TimePointParameters tpp)
 {
     int tIdx = blockIdx.x * blockDim.x + threadIdx.x;

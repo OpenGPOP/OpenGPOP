@@ -75,6 +75,13 @@ void GpuPropagator::Step(
 
     _stepNumber++;
 }
+void GpuPropagator::CopyStateToHost(double* hostPositions, double* hostVelocities) const
+{
+    gpuErrchk(cudaMemcpy(
+        hostPositions, _positions, _numSatellites * 3 * sizeof(double), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(
+        hostVelocities, _velocities, _numSatellites * 3 * sizeof(double), cudaMemcpyDeviceToHost));
+}
 
 void GpuPropagator::Correct()
 {

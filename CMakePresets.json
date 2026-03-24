@@ -1,21 +1,31 @@
 {
-    "version": 3,
-    "cmakeMinimumRequired": {
-        "major": 3,
-        "minor": 20
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20
+  },
+  "configurePresets": [
+    {
+      "name": "base-config",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-${presetName}"
     },
-    "configurePresets": [
-        {
-            "name": "build",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build"
-        },
-        {
-            "name": "build-cpu-only",
-            "inherits": "build",
-            "cacheVariables": {
-                "CPU_ONLY": true
-            }
-        }
-    ]
+    {
+      "name": "debug",
+      "inherits": "base-config",
+      "displayName": "Debug Build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base-config",
+      "displayName": "Release Build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ]
 }

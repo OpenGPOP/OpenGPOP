@@ -53,6 +53,7 @@ public:
 
     void Step(double* hostPositions = nullptr, double* hostVelocities = nullptr,
         double* devAccelerationVector = nullptr);
+    void CopyStateToHost(double* hostPositions, double* hostVelocities) const;
     void FreeAllMemory();
     ~GpuPropagator();
 };

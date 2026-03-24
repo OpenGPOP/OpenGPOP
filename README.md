@@ -49,51 +49,73 @@ and add a vscode extension with the same name. Then, in `.vscode/settings.json` 
     "C_Cpp.errorSquiggles": "disabled"
 ```
 
-Next, do a clean CMake rebuild and restart VSCode.
+## Building
 
-## How to build & run
+To build the project, use the provided CMake presets. You can choose between a debug and a release build.
 
-In the main project directory, run `cmake --preset build`.
+### Debug Build
 
-You can use the vscode's *Run and Debug* menu to run targets in debug mode with breakpoint support. Alternatively, you
-can run ninja targets directly.
+```bash
+cmake --preset debug
+cmake --build build-debug
+```
 
-## Ninja targets
+### Release Build
 
-In the `build/` directory, you can use `ninja <target>` to build the chosen target. There are several targets available.
-Adding `.run` at the end of a target name automatically runs it after a successful build. To check for device memory
-leaks, use a `.memcheck` target.
+```bash
+cmake --preset release
+cmake --build build-release
+```
 
-- `exec` / `exec.run`
-- `unit_tests` / `unit_tests.run` / `unit_tests.memcheck`
-- `accuracy_tests` / `accuracy_tests.run`
+## Usage
 
-## Accuracy tests
+The application provides a command-line interface with two main modes of operation: orbit propagation and closest approach calculation.
 
-accuracy_tests target tests gpu propagator using real world data. To perform the tests, test cases needs to be generated
-using [generate_test_data.py](generate_test_data.py) script.
-It fetches real-world, centimeter-level accuracy telemetry from ESA's Sentinel-1 mission and establishes a numerical
-baseline using Orekit.
+### Run Orbit Propagation
 
-The script does the following:
+To propagate orbits for a set of objects:
 
-1. Downloads historical Precise Orbit Ephemerides (`.EOF` files) from the Copernicus ecosystem.
-2. Uses `astropy` to precisely convert the downloaded state vectors from Earth-Fixed (ITRS) to Inertial (GCRS).
-3. Uses `orekit` (via JPype) with a 70x70 spherical harmonics gravity model and a fixed-step RK4 integrator to propagate
-   the orbit and calculate a baseline numerical error.
-4. Saves the results as a flat, space-separated text file (`data/state_vectors.txt`) optimized for fast `std::ifstream`
-   parsing in C++.
+```bash
+./exec propagate --input <input_file.json> [--output <output_file.json>]
+```
 
-### Requirements & Setup
+**Options:**
 
-Python dependencies (such as `orekit-jpype`, `astropy`, and `sentineleof`) are downloaded automatically to virtual
-environment during project setup (`cmake --preset build`)
+- `-i, --input`: Path to the input JSON file (Required).
+- `-o, --output`: Path to the output JSON file. Defaults to `propagation_out.json`.
 
-**Important Data Dependency:** Orekit requires physical models (gravity fields, JPL ephemerides, IERS Earth rotation
-data) to run. You must download [orekit-data-main.zip](https://gitlab.orekit.org/orekit/orekit-data) and place it in the
-same directory as the script. **Do not unzip this file**; JPype will mount it directly into the JVM.
+### Calculate Closest Approach
 
-### Output Format
+To calculate closest approaches between objects:
 
-Each line in the generated text file represents a single test case, formatted exactly as follows:
-`x0 y0 z0 vx0 vy0 vz0 year month day hour minute second dt_seconds target_x target_y target_z baseline_error_meters`
+```bash
+./build-release/exec/exec closest-approach --input <input_file.json> [--output <output_file.json>]
+```
+
+**Options:**
+
+- `-i, --input`: Path to the input JSON file (Required).
+- `-o, --output`: Path to the output JSON file. Defaults to `closest_approach_out.json`.
+
+### Input/Output Format
+
+The application uses JSON for input and output. The data structures are defined using `nlohmann/json`.
+
+**Common Structures:**
+
+- `TimeData`: Year, Month, Day, Hour, Min, Sec.
+
+**Propagation Input:**
+
+- `propagationStart`: Start time (`TimeData`).
+- `propagationSeconds`: Duration of propagation in seconds.
+- `positions`: List of initial positions.
+- `velocities`: List of initial velocities.
+
+**Closest Approach Input:**
+
+- `propagationStart`: Start time (`TimeData`).
+- `propagationSeconds`: Duration of propagation in seconds.
+- `positions`: List of initial positions.
+- `velocities`: List of initial velocities.
+- `setIndices`: Indices of the set of objects to check against each other.

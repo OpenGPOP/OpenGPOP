@@ -20,12 +20,13 @@ add_custom_target(${NAME}.memcheck
 target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
         -Xcompiler -Werror
         -Xcompiler -Wall
-        -G -rdynamic
+        -rdynamic -G
         -Xcompiler -Wextra
         >)
 
 target_sources(${NAME} PRIVATE
-        main.cu
+        main.cpp
+        runner.cu
 )
 
 target_link_libraries(${NAME}
@@ -34,4 +35,7 @@ target_link_libraries(${NAME}
         gpu_startup
         gpu_propagator
         closest_approach
+        nlohmann_json::nlohmann_json
+        CLI11::CLI11
+        indicators::indicators
 )
