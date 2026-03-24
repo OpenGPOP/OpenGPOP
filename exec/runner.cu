@@ -19,7 +19,7 @@ PropagationOutput propagate(const PropagationInput& input)
 
     cublasHandle_t handle;
     cublasErrchk(cublasCreate(&handle));
-    ForceModel forceModel(&handle, 1, stepSize, &parameters);
+    ForceModel forceModel(&handle, input.positions.size(), stepSize, &parameters);
 
     double* devPosition;
     double* devVelocity;
@@ -34,7 +34,7 @@ PropagationOutput propagate(const PropagationInput& input)
 
 
     GpuPropagator propagator(
-        devPosition, devVelocity, 1, &handle, stepSize, &parameters, forceModel, totalSteps, 7);
+        devPosition, devVelocity, input.positions.size(), &handle, stepSize, &parameters, forceModel, totalSteps, 7);
 
     indicators::BlockProgressBar bar {
         indicators::option::BarWidth(80),
@@ -82,7 +82,7 @@ ClosestApproachOutput closestApproach(const ClosestApproachInput& input)
     FullPerturbationParameters params { .StartTimeUTC = input.propagationStart };
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    ForceModel forceModel(&handle, input.positions.size(), 1.0, &params);
+    ForceModel forceModel(&handle, input.positions.size(), stepSize, &params);
     ClosestApproach closestApproach(&handle, &params, forceModel, stepSize);
 
     // initialize vectors with data
