@@ -7,7 +7,14 @@
             "request": "launch",
             "program": "${workspaceFolder}/build-debug/exec/exec",
             "cwd": "${workspaceFolder}/build-debug/exec",
-            "preLaunchTask": "Build Exec"
+            "preLaunchTask": "Build Exec",
+            "args": [
+                "closest-approach",
+                "--input",
+                "${workspaceFolder}/data/col_data.json",
+                "--output",
+                "${workspaceFolder}/out.json"
+            ],
         },
         {
             "name": "Unit Tests Debug",

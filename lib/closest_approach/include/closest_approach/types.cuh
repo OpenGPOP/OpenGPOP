@@ -80,6 +80,9 @@ struct ApproachParameters {
     unsigned int* closestSteps;
     double* closestDistances;
 
+    double* closestPositionsA;
+    double* closestPositionsB;
+
     Objects closest;
     Objects before;
     Objects after;
@@ -88,6 +91,8 @@ struct ApproachParameters {
     {
         gpuErrchk(cudaMalloc(&closestDistances, sizeof(double) * pairNum));
         gpuErrchk(cudaMalloc(&closestSteps, sizeof(int) * pairNum));
+        gpuErrchk(cudaMalloc(&closestPositionsA, sizeof(double) * pairNum * 3));
+        gpuErrchk(cudaMalloc(&closestPositionsB, sizeof(double) * pairNum * 3));
         closest.cudaAllocate(sizeof(double) * pairNum);
         before.cudaAllocate(sizeof(double) * pairNum);
         after.cudaAllocate(sizeof(double) * pairNum);
@@ -97,6 +102,8 @@ struct ApproachParameters {
     {
         CUDA_SAFE_FREE(closestDistances);
         CUDA_SAFE_FREE(closestSteps);
+        CUDA_SAFE_FREE(closestPositionsA);
+        CUDA_SAFE_FREE(closestPositionsB);
         closest.cudaFree();
         before.cudaFree();
         after.cudaFree();
@@ -106,6 +113,9 @@ struct ApproachParameters {
 struct Approach {
     double distance;
     double time;
+
+    double positionA[3];
+    double positionB[3];
 };
 
 class ClosestApproachData {
@@ -113,20 +123,27 @@ class ClosestApproachData {
 
     double* _distances = nullptr;
     double* _times = nullptr;
+    double* _positionsA = nullptr;
+    double* _positionsB = nullptr;
     PartitionParameters _partParams;
 
-    inline void Populate(PartitionParameters partParams, double* distances, double* times)
+    inline void Populate(PartitionParameters partParams, double* distances, double* times,
+        double* positionsA, double* positionsB)
     {
         Free();
         _partParams = partParams;
         _distances = distances;
         _times = times;
+        _positionsA = positionsA;
+        _positionsB = positionsB;
     }
 
     void Free()
     {
         delete[] _distances;
         delete[] _times;
+        delete[] _positionsA;
+        delete[] _positionsB;
         _partParams.hostFree();
     }
 
@@ -136,16 +153,19 @@ public:
     inline Approach Get(unsigned objA, unsigned objB)
     {
         if (_distances == nullptr || _times == nullptr) {
-            return { -1.0, -1.0 }; // Not populated
+            return { -1.0, -1.0, { -1.0, -1.0, -1.0 }, { -1.0, -1.0, -1.0 } }; // Not populated
         }
         if (objA == objB) {
-            return { 0.0, 0.0 };
+            return { 0.0, 0.0, { 0.0, 0.0, 0.0 }, { 0.0, 0.0, 0.0 } };
         }
         auto idx = _partParams.GetPartitionMapIdx(objA, objB);
         if (idx < 0) {
-            return { -1.0, -1.0 }; // Invalid pair
+            return { -1.0, -1.0, { -1.0, -1.0, -1.0 }, { -1.0, -1.0, -1.0 } }; // Invalid pair
         }
-        return { _distances[idx], _times[idx] };
+        auto posA = &_positionsA[idx * 3];
+        auto posB = &_positionsB[idx * 3];
+        return { _distances[idx], _times[idx], { posA[0], posA[1], posA[2] },
+            { posB[0], posB[1], posB[2] } };
     }
 
     inline ~ClosestApproachData() { Free(); }

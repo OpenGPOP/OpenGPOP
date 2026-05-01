@@ -33,7 +33,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(PropagationOutput, propagation
     propagationSeconds, positionsStart, velocitiesStart, positionsEnd, velocitiesEnd);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
-    ClosestApproachRecord, objectIndex1, objectIndex2, distance, time);
+    ClosestApproachRecord, objectIndex1, objectIndex2, distance, time, positionAx, positionAy, positionAz, positionBx, positionBy, positionBz);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
     ClosestApproachInput, propagationStart, propagationSeconds, positions, velocities, setIndices);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(ClosestApproachOutput, propagationStart,

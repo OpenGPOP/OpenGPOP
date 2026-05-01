@@ -44,10 +44,15 @@ and add a vscode extension with the same name. Then, in `.vscode/settings.json` 
 
 ```
     "clangd.path": "clangd",
+    "clangd.arguments": [
+        "--query-driver=/usr/bin/g*,/usr/local/cuda-13.1/bin/nvcc",
+        "--compile-commands-dir=build-debug"
+    ],
     "C_Cpp.intelliSenseEngine": "disabled",
     "C_Cpp.autocomplete": "disabled",
     "C_Cpp.errorSquiggles": "disabled"
 ```
+Make sure to first build the project using the debug preset for this to work.
 
 ## Building
 

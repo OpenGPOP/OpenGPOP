@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cuda_runtime_api.h>
 #include <driver_types.h>
+#include <iostream>
 
 ClosestApproach::~ClosestApproach()
 {
@@ -47,19 +48,37 @@ void ClosestApproach::Initialize(const std::vector<std::array<double, 3>>& posit
     const std::vector<std::array<double, 3>>& velocities, const std::vector<unsigned>& setIndices)
 {
     // Initialization should be called only once
-    assert(_numEntities == 0);
+    if (_numEntities != 0) {
+        std::cerr << "Error: Initialization already called (_numEntities is not 0)." << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
 
     // Check input sanity
-    assert(!positions.empty());
-    assert(positions.size() == velocities.size());
-    assert(positions.size() == setIndices.size());
+    if (positions.empty()) {
+        std::cerr << "Error: Positions array is empty." << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    if (positions.size() != velocities.size()) {
+        std::cerr << "Error: Size mismatch. Positions: " << positions.size()
+                  << ", Velocities: " << velocities.size() << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    if (positions.size() != setIndices.size()) {
+        std::cerr << "Error: Size mismatch. Positions: " << positions.size()
+                  << ", setIndices: " << setIndices.size() << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
     _numEntities = setIndices.size();
 
-    // Calculate partition parameters, save to _hostPartitionParams
-    assert(setIndices.front() != setIndices.back()); // Ensure at least 2 sets
-    assert(_hostPartitionParams.Calculate(setIndices));
-    _hostPartitionParams.setIds = new unsigned[setIndices.size()];
-    memcpy(_hostPartitionParams.setIds, setIndices.data(), sizeof(unsigned) * setIndices.size());
+    if (setIndices.front() == setIndices.back()) {
+        std::cerr << "Error: Invalid setIndices. At least 2 sets are required." << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    if (!_hostPartitionParams.Calculate(setIndices)) {
+        std::cerr << "Error: Failed to calculate partition parameters." << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
 
     // Allocate device memory, copy partition parameters and setIds
     _devPartitionParams.numSets = _hostPartitionParams.numSets;
@@ -160,6 +179,13 @@ void ClosestApproach::FindClosest(ClosestApproachData& closestApproaches)
     gpuErrchk(cudaMemcpy(closestTimes, devClosestTimes,
         sizeof(double) * _devPartitionParams.numPairs, cudaMemcpyDeviceToHost));
 
+    double* closestPositionsA = new double[_devPartitionParams.numPairs * 3];
+    double* closestPositionsB = new double[_devPartitionParams.numPairs * 3];
+    gpuErrchk(cudaMemcpy(closestPositionsA, _devApproachParams.closestPositionsA,
+        sizeof(double) * _devPartitionParams.numPairs * 3, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(closestPositionsB, _devApproachParams.closestPositionsB,
+        sizeof(double) * _devPartitionParams.numPairs * 3, cudaMemcpyDeviceToHost));
+
     CUDA_SAFE_FREE(devClosestTimes);
 
     // Make a deep copy of the host partition parameters to return with the results
@@ -179,5 +205,6 @@ void ClosestApproach::FindClosest(ClosestApproachData& closestApproaches)
     std::memcpy(hostPartitionParamsCopy.mapOffsets, _hostPartitionParams.mapOffsets,
         sizeof(unsigned) * hostPartitionParamsCopy.numSets);
 
-    closestApproaches.Populate(hostPartitionParamsCopy, closestDistances, closestTimes);
+    closestApproaches.Populate(hostPartitionParamsCopy, closestDistances, closestTimes,
+        closestPositionsA, closestPositionsB);
 }

@@ -17,6 +17,7 @@
 #include "closest_approach/closest_approach.cuh"
 #include "closest_approach/utility/interpolation.cuh"
 #include "closest_approach/utility/partition_parameters.cuh"
+#include <cstdio>
 
 __device__ void UpdateDimensions(Arrays3D arrays, double* src, unsigned tIdx, unsigned objIdx)
 {
@@ -164,4 +165,39 @@ __global__ void CalculateClosestApproachesKernel(PartitionParameters partParams,
     double dy = objA.y(t) - objB.y(t);
     double dz = objA.z(t) - objB.z(t);
     appParams.closestDistances[idx] = sqrt(dx * dx + dy * dy + dz * dz);
+    appParams.closestPositionsA[idx * 3] = objA.x(t);
+    appParams.closestPositionsA[idx * 3 + 1] = objA.y(t);
+    appParams.closestPositionsA[idx * 3 + 2] = objA.z(t);
+    appParams.closestPositionsB[idx * 3] = objB.x(t);
+    appParams.closestPositionsB[idx * 3 + 1] = objB.y(t);
+    appParams.closestPositionsB[idx * 3 + 2] = objB.z(t);
+
+    // printf("dx: %f, dy: %f, dz: %f\n", dx, dy, dz);
+    // printf("point_A = [%f, %f, %f]\n"
+    //        "point_B = [%f, %f, %f]\n\n",
+    //     objA.x(t), objA.y(t), objA.z(t), objB.x(t), objB.y(t), objB.z(t));
+    // // Print A before, closest, after points
+    // // Print sat_A (o1) in Python dictionary format
+    // printf("sat_A = {\n"
+    //        "    \"before\":  [%f, %f, %f],\n"
+    //        "    \"closest\": [%f, %f, %f],\n"
+    //        "    \"after\":   [%f, %f, %f]\n"
+    //        "}\n\n",
+    //     appParams.before.o1.position.x[idx], appParams.before.o1.position.y[idx],
+    //     appParams.before.o1.position.z[idx], appParams.closest.o1.position.x[idx],
+    //     appParams.closest.o1.position.y[idx], appParams.closest.o1.position.z[idx],
+    //     appParams.after.o1.position.x[idx], appParams.after.o1.position.y[idx],
+    //     appParams.after.o1.position.z[idx]);
+
+    // // Print sat_B (o2) in Python dictionary format
+    // printf("sat_B = {\n"
+    //        "    \"before\":  [%f, %f, %f],\n"
+    //        "    \"closest\": [%f, %f, %f],\n"
+    //        "    \"after\":   [%f, %f, %f]\n"
+    //        "}\n\n",
+    //     appParams.before.o2.position.x[idx], appParams.before.o2.position.y[idx],
+    //     appParams.before.o2.position.z[idx], appParams.closest.o2.position.x[idx],
+    //     appParams.closest.o2.position.y[idx], appParams.closest.o2.position.z[idx],
+    //     appParams.after.o2.position.x[idx], appParams.after.o2.position.y[idx],
+    //     appParams.after.o2.position.z[idx]);
 }

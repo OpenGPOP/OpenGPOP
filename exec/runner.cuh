@@ -33,6 +33,8 @@ struct ClosestApproachInput {
 struct ClosestApproachRecord {
     int objectIndex1, objectIndex2;
     double distance, time;
+    double positionAx, positionAy, positionAz;
+    double positionBx, positionBy, positionBz;
 };
 
 struct ClosestApproachOutput {

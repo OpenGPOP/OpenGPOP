@@ -32,9 +32,8 @@ PropagationOutput propagate(const PropagationInput& input)
     cudaMemcpy(devVelocity, input.velocities.data(), input.velocities.size() * 3 * sizeof(double),
         cudaMemcpyHostToDevice);
 
-
-    GpuPropagator propagator(
-        devPosition, devVelocity, input.positions.size(), &handle, stepSize, &parameters, forceModel, totalSteps, 7);
+    GpuPropagator propagator(devPosition, devVelocity, input.positions.size(), &handle, stepSize,
+        &parameters, forceModel, totalSteps, 7);
 
     indicators::BlockProgressBar bar {
         indicators::option::BarWidth(80),
@@ -67,7 +66,7 @@ PropagationOutput propagate(const PropagationInput& input)
     cudaFree(devVelocity);
 
     return { input.propagationStart, input.propagationSeconds, input.positions, input.velocities,
-        positionsEnd, velocitiesEnd , elapsed};
+        positionsEnd, velocitiesEnd, elapsed };
 }
 
 ClosestApproachOutput closestApproach(const ClosestApproachInput& input)
@@ -98,7 +97,10 @@ ClosestApproachOutput closestApproach(const ClosestApproachInput& input)
         for (size_t j = i + 1; j < input.positions.size(); ++j) {
             // Only print pairs that belong to different sets
             if (input.setIndices[i] != input.setIndices[j]) {
-                records.emplace_back(i, j, data.Get(i, j).distance, data.Get(i, j).time);
+                auto appr = data.Get(i, j);
+                records.emplace_back(i, j, appr.distance, appr.time, appr.positionA[0],
+                    appr.positionA[1], appr.positionA[2], appr.positionB[0], appr.positionB[1],
+                    appr.positionB[2]);
             }
         }
     }
@@ -108,12 +110,10 @@ ClosestApproachOutput closestApproach(const ClosestApproachInput& input)
 
     cublasDestroy(handle);
 
-    return {
-        .propagationStart = input.propagationStart,
+    return { .propagationStart = input.propagationStart,
         .propagationSeconds = input.propagationSeconds,
         .positionsStart = input.positions,
         .velocitiesStart = input.velocities,
         .closestApproaches = records,
-        .calculationTimeSeconds = elapsed
-    };
+        .calculationTimeSeconds = elapsed };
 }
