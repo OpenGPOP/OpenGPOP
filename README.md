@@ -1,3 +1,6 @@
+# Introduction
+OpenGPOP - Open **G**PU-**P**arallelised **O**rbit **P**ropagator is a CUDA C++ terminal application that uses GPUs to propagate orbits of  thousands of objects in parallel. The app has two main features - orbit propagation up to a given time and finding the closest approach of objects in a given period.
+
 # Setup
 
 ## Prerequisites
