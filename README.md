@@ -1,3 +1,8 @@
+# Introduction
+OpenGPOP - Open **G**PU-**P**arallelised **O**rbit **P**ropagator is a CUDA C++ terminal application that uses GPUs to propagate orbits of  thousands of objects in parallel. The app has two main features - orbit propagation up to a given time and finding the closest approach of objects in a given period.
+
+The propagator uses 8th order Gauss-Jackson method as integrator and a force model based on earth gravitational field modelled with spherical harmonics. The [whitepaper](doc/white_paper.pdf) provides a detailed description of the implemented numerical methods, force model, conjunction checks, and parallelisation techniques.
+
 # Setup
 
 ## Prerequisites
