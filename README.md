@@ -1,10 +1,10 @@
 # Introduction
 OpenGPOP - Open **G**PU-**P**arallelised **O**rbit **P**ropagator is a CUDA C++ terminal application that uses GPUs to propagate orbits of  thousands of objects in parallel. The app has two main features - orbit propagation up to a given time and finding the closest approach of objects in a given period.
 
-The propagator uses 8th order Gauss-Jackson method as integrator and a force model based on earth gravitational field modelled with spherical harmonics. The [whitepaper](doc/white_paper.pdf) provides a detailed description of the implemented numerical methods, force model, conjunction checks, and parallelisation techniques.
+The propagator uses the 8th-order Gauss-Jackson method as integrator and a force model based on the Earth's gravitational field modelled with spherical harmonics. The [whitepaper](doc/whitepaper.pdf) provides a detailed description of the implemented numerical methods, force model, conjunction checks, and parallelisation techniques.
 
 # Setup
-For now OpenGPOP only works on linux machines with nvidia GPUs.
+As of now, OpenGPOP only works on Linux machines with NVIDIA GPUs.
 
 ## Prerequisites
 
@@ -39,11 +39,11 @@ replacing `YOUR_VERSION` with your CUDA version, eg `12.9`
 
 Then, restart the terminal and try again.
 
-### Nsight debugger
+### Nsight debugger (optional)
 
 In vscode, use `Ctrl+P` and enter `ext install NVIDIA.nsight-vscode-edition`
 
-### In case vscode struggles to recognise symbols
+### In case vscode struggles to recognise symbols (optional)
 
 Instead of using the standard Microsoft C/C++ Intelisense try using clangd. Install it using `sudo apt install clangd`
 and add a vscode extension with the same name. Then, in `.vscode/settings.json` add the following lines:
@@ -87,7 +87,7 @@ The application provides a command-line interface with two main modes of operati
 To propagate orbits for a set of objects:
 
 ```bash
-./exec propagate --input <input_file.json> [--output <output_file.json>]
+./build-release/exec/exec propagate --input <input_file.json> [--output <output_file.json>]
 ```
 
 **Options:**
