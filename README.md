@@ -4,6 +4,7 @@ OpenGPOP - Open **G**PU-**P**arallelised **O**rbit **P**ropagator is a CUDA C++ 
 The propagator uses 8th order Gauss-Jackson method as integrator and a force model based on earth gravitational field modelled with spherical harmonics. The [whitepaper](doc/white_paper.pdf) provides a detailed description of the implemented numerical methods, force model, conjunction checks, and parallelisation techniques.
 
 # Setup
+For now OpenGPOP only works on linux machines with nvidia GPUs.
 
 ## Prerequisites
 
