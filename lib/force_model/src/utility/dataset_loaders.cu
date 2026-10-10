@@ -29,7 +29,7 @@ namespace DatasetLoaders {
 // A single function to load either the Longitude or Obliquity nutation tables
 NutationTables LoadNutationData(const std::string& filepath)
 {
-    NutationTables tables {};
+    NutationTables tables { };
     std::ifstream file(filepath);
 
     if (!file.is_open()) {
@@ -271,7 +271,7 @@ __host__ GravityDataset LoadGravityModel(const std::string& filepath)
 
         // Check the first data line rule
         if (firstDataLine) {
-            if (key != "gfc") {
+            if (key != "gfc" && key != "gfct") {
                 throw std::runtime_error(
                     "Error: Only static models (gfc) are accepted. Found: " + key);
             }
@@ -279,7 +279,7 @@ __host__ GravityDataset LoadGravityModel(const std::string& filepath)
         }
 
         // Parse coefficients
-        if (key == "gfc") {
+        if (key == "gfc" || key == "gfct") {
             unsigned L, M;
             double C_val, S_val;
 
