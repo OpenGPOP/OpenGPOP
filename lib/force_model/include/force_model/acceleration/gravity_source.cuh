@@ -40,7 +40,7 @@ __global__ void ComputeCmSmKernel(GravityDataset* dataset, double* positions, in
 
 // Prepares summation elements for Gn, Hn, Jn, and Kn (eq. 4-11)
 // Run with numEntities * TRIANGULAR_SIZE(N) threads.
-__global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities);
+__global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities, double decimal_year);
 
 // Prepares summation elements for G, H, J, and K (eq. 4-12)
 // Run with numEntities threads.
@@ -85,4 +85,5 @@ private:
 
     void SumM();
     void SumN();
+    double GetDecimalYear();
 };

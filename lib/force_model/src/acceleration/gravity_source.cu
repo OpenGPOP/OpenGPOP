@@ -60,7 +60,7 @@ struct TriangularCyclicLambda {
 
 void GravitySource::Initialize()
 {
-    auto data = DatasetLoaders::LoadGravityModel("../../data/JGM3.gfc");
+    auto data = DatasetLoaders::LoadGravityModel("../../data/EIGEN-6S4_(v2).gfc");
     _dataset = data; // make a shallow copy to fill non-array elements
 
     size_t size = TRI_SIZE(data.N);
@@ -72,6 +72,63 @@ void GravitySource::Initialize()
     gpuErrchk(cudaMemcpy(_dataset.Snm, data.Snm, size * sizeof(double), cudaMemcpyHostToDevice));
     delete[] data.Cnm;
     delete[] data.Snm;
+
+    // Copy time-variable flag
+    gpuErrchk(cudaMalloc(&_dataset.is_gfct, size * sizeof(bool)));
+    gpuErrchk(
+        cudaMemcpy(_dataset.is_gfct, data.is_gfct, size * sizeof(bool), cudaMemcpyHostToDevice));
+    delete[] data.is_gfct;
+
+    // Copy reference epoch
+    gpuErrchk(cudaMalloc(&_dataset.t0, size * sizeof(double)));
+    gpuErrchk(cudaMemcpy(_dataset.t0, data.t0, size * sizeof(double), cudaMemcpyHostToDevice));
+    delete[] data.t0;
+
+    // Copy secular trends
+    gpuErrchk(cudaMalloc(&_dataset.trnd_C, size * sizeof(double)));
+    gpuErrchk(cudaMalloc(&_dataset.trnd_S, size * sizeof(double)));
+    gpuErrchk(
+        cudaMemcpy(_dataset.trnd_C, data.trnd_C, size * sizeof(double), cudaMemcpyHostToDevice));
+    gpuErrchk(
+        cudaMemcpy(_dataset.trnd_S, data.trnd_S, size * sizeof(double), cudaMemcpyHostToDevice));
+    delete[] data.trnd_C;
+    delete[] data.trnd_S;
+
+    // Copy annual periodic coefficients (1.0 yr)
+    gpuErrchk(cudaMalloc(&_dataset.acos1_C, size * sizeof(double)));
+    gpuErrchk(cudaMalloc(&_dataset.asin1_C, size * sizeof(double)));
+    gpuErrchk(cudaMalloc(&_dataset.acos1_S, size * sizeof(double)));
+    gpuErrchk(cudaMalloc(&_dataset.asin1_S, size * sizeof(double)));
+    gpuErrchk(
+        cudaMemcpy(_dataset.acos1_C, data.acos1_C, size * sizeof(double), cudaMemcpyHostToDevice));
+    gpuErrchk(
+        cudaMemcpy(_dataset.asin1_C, data.asin1_C, size * sizeof(double), cudaMemcpyHostToDevice));
+    gpuErrchk(
+        cudaMemcpy(_dataset.acos1_S, data.acos1_S, size * sizeof(double), cudaMemcpyHostToDevice));
+    gpuErrchk(
+        cudaMemcpy(_dataset.asin1_S, data.asin1_S, size * sizeof(double), cudaMemcpyHostToDevice));
+    delete[] data.acos1_C;
+    delete[] data.asin1_C;
+    delete[] data.acos1_S;
+    delete[] data.asin1_S;
+
+    // Copy semi-annual periodic coefficients (0.5 yr)
+    gpuErrchk(cudaMalloc(&_dataset.acos05_C, size * sizeof(double)));
+    gpuErrchk(cudaMalloc(&_dataset.asin05_C, size * sizeof(double)));
+    gpuErrchk(cudaMalloc(&_dataset.acos05_S, size * sizeof(double)));
+    gpuErrchk(cudaMalloc(&_dataset.asin05_S, size * sizeof(double)));
+    gpuErrchk(cudaMemcpy(
+        _dataset.acos05_C, data.acos05_C, size * sizeof(double), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(
+        _dataset.asin05_C, data.asin05_C, size * sizeof(double), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(
+        _dataset.acos05_S, data.acos05_S, size * sizeof(double), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(
+        _dataset.asin05_S, data.asin05_S, size * sizeof(double), cudaMemcpyHostToDevice));
+    delete[] data.acos05_C;
+    delete[] data.asin05_C;
+    delete[] data.acos05_S;
+    delete[] data.asin05_S;
 
     // Calculate the delta function and the diagonal of the normalized derived Legendre functions.
     auto delta = new double[data.N];
@@ -138,6 +195,22 @@ void GravitySource::FreeDataset()
 {
     CUDA_SAFE_FREE(_dataset.Cnm);
     CUDA_SAFE_FREE(_dataset.Snm);
+
+    CUDA_SAFE_FREE(_dataset.is_gfct);
+    CUDA_SAFE_FREE(_dataset.t0);
+
+    CUDA_SAFE_FREE(_dataset.trnd_C);
+    CUDA_SAFE_FREE(_dataset.trnd_S);
+
+    CUDA_SAFE_FREE(_dataset.acos1_C);
+    CUDA_SAFE_FREE(_dataset.asin1_C);
+    CUDA_SAFE_FREE(_dataset.acos1_S);
+    CUDA_SAFE_FREE(_dataset.asin1_S);
+
+    CUDA_SAFE_FREE(_dataset.acos05_C);
+    CUDA_SAFE_FREE(_dataset.asin05_C);
+    CUDA_SAFE_FREE(_dataset.acos05_S);
+    CUDA_SAFE_FREE(_dataset.asin05_S);
 
     CUDA_SAFE_FREE(_dataset.Cm_bar);
     CUDA_SAFE_FREE(_dataset.Sm_bar);
@@ -210,13 +283,23 @@ void GravitySource::ComputeAcceleration(
             _devAccelerationInITRS, 1, 3, &beta, out, 1, outStride * 3, _numEntities));
 }
 
+double GravitySource::GetDecimalYear()
+{
+    auto start_time = _time_points->GetStartTime();
+    const int days_before_month[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+    int m_idx = (start_time.Month >= 1 && start_time.Month <= 12) ? (start_time.Month - 1) : 0;
+    double day_frac = (start_time.Day - 1.0)
+        + (start_time.Hour + (start_time.Min + start_time.Sec / 60.0) / 60.0) / 24.0;
+    return start_time.Year + ((days_before_month[m_idx] + day_frac) / 365.25);
+}
+
 void GravitySource::SumM()
 {
     // Prepare M summation
     int threadsPerBlock = 256;
     int numOfThreads = _numEntities * TRI_SIZE(_dataset.N);
     int blockCount = numOfThreads / threadsPerBlock + 1;
-    PrepareMSumKernel<<<blockCount, threadsPerBlock>>>(_devDataset, _numEntities);
+    PrepareMSumKernel<<<blockCount, threadsPerBlock>>>(_devDataset, _numEntities, GetDecimalYear());
     gpuErrchk(cudaGetLastError());
     gpuErrchk(cudaDeviceSynchronize());
 

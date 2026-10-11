@@ -43,6 +43,7 @@ public:
     virtual void Initialize() override;
     virtual void CalculateParameters(int arrayLength, bool useMidpoints, int beforeEpoch) override;
     virtual TimePointParameters GetParametersDev(int stepNum) override;
+    virtual TimeData GetStartTime() override;
 
 private:
     cublasHandle_t* _cublasHandle;

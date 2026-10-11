@@ -20,6 +20,7 @@
 #include "force_model/utility/dataset_loaders.cuh"
 #include "force_model/utility/ref_sys_trans.cuh"
 #include "gpu_utils/gpu_utils.cuh"
+#include "types/Parameters.hpp"
 #include <cstring>
 #include <cuda_runtime_api.h>
 
@@ -205,6 +206,8 @@ TimePointParameters FMTimePoints::GetParametersDev(int stepNum)
     return { .ITRS_to_GCRS = _timePointParameters.ITRS_to_GCRS + stepNum * 9,
         .mjd = _timePointParameters.mjd + stepNum };
 }
+
+TimeData FMTimePoints::GetStartTime() { return _startTime; }
 
 void FMTimePoints::FreeDatasets()
 {
