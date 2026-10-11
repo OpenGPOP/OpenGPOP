@@ -18,6 +18,7 @@
 #include "force_model/acceleration/gravity_source.cuh"
 #include "gpu_utils/gpu_utils.cuh"
 #include "mock_time_points.cuh"
+#include "types/Parameters.hpp"
 #include <cuda_runtime.h>
 #include <gtest/gtest.h>
 #include <string>
@@ -25,7 +26,8 @@
 class GravitySourceTest : public ::testing::Test {
 protected:
     cublasHandle_t cublasHandle;
-    MockFMTimePoints timePoints {};
+    MockFMTimePoints timePoints { };
+    DatasetFilePaths dsFiles = { };
 
     // Variables for the mock's identity matrix on the device
     double* devIdentityMatrix = nullptr;
@@ -67,12 +69,12 @@ protected:
 
 TEST_F(GravitySourceTest, CanConstructAndDestruct)
 {
-    GravitySource gravity(&cublasHandle, 1, &timePoints);
+    GravitySource gravity(&cublasHandle, 1, &timePoints, dsFiles);
 }
 
 TEST_F(GravitySourceTest, InitializeCompletesSuccessfully)
 {
-    GravitySource gravity(&cublasHandle, 1, &timePoints);
+    GravitySource gravity(&cublasHandle, 1, &timePoints, dsFiles);
     gravity.Initialize();
 }
 
@@ -108,7 +110,8 @@ double expAccels[30] = {
 
 TEST_F(GravitySourceTest, ComputeAccelerationOneByOne)
 {
-    GravitySource gravity(&cublasHandle, 1, &timePoints);
+    DatasetFilePaths dfFiles { .gravityModel = "../../data/JGM3.gfc" };
+    GravitySource gravity(&cublasHandle, 1, &timePoints, dfFiles);
     gravity.Initialize();
 
     double *devPosition, *devVelocity, *out;
@@ -122,6 +125,7 @@ TEST_F(GravitySourceTest, ComputeAccelerationOneByOne)
     double tolerance = 1e-10;
 
     EXPECT_CALL(timePoints, GetParametersDev(stepNum)).Times(10);
+    EXPECT_CALL(timePoints, GetStartTime()).Times(10);
     for (int i = 0; i < 10; ++i) {
         double pos[3] = { positions[i * 3 + 0], positions[i * 3 + 1], positions[i * 3 + 2] };
         cudaMemcpy(devPosition, pos, bytes, cudaMemcpyHostToDevice);
@@ -145,7 +149,8 @@ TEST_F(GravitySourceTest, ComputeAccelerationOneByOne)
 TEST_F(GravitySourceTest, ComputeAccelerationBatched)
 {
     int numEntities = 10;
-    GravitySource gravity(&cublasHandle, numEntities, &timePoints);
+    DatasetFilePaths dfFiles { .gravityModel = "../../data/JGM3.gfc" };
+    GravitySource gravity(&cublasHandle, numEntities, &timePoints, dfFiles);
     gravity.Initialize();
 
     double *devPosition, *devVelocity, *out;
@@ -162,6 +167,7 @@ TEST_F(GravitySourceTest, ComputeAccelerationBatched)
     int outStride = 1;
 
     EXPECT_CALL(timePoints, GetParametersDev(stepNum)).Times(1);
+    EXPECT_CALL(timePoints, GetStartTime()).Times(1);
     gravity.ComputeAcceleration(devPosition, devVelocity, stepNum, out, outStride);
 
     double hostOut[30];

@@ -20,6 +20,7 @@
 #include "force_model/acceleration/iacceleration_source.cuh"
 #include "force_model/time_points/itime_points.cuh"
 #include "force_model/types.cuh"
+#include "types/Parameters.hpp"
 #include <string>
 
 // Computes xi(n,m), eta(n,m), and zeta(n,m) tables of auxiliary coefficients (eq. 7-10, 7-19)
@@ -59,10 +60,12 @@ __global__ void CalculateAcceleration(
 // https://ntrs.nasa.gov/api/citations/19940025085/downloads/19940025085.pdf
 class GravitySource : public IAccelerationSource {
 public:
-    GravitySource(cublasHandle_t* handle, int numEntities, IFMTimePoints* time_points)
+    GravitySource(cublasHandle_t* handle, int numEntities, IFMTimePoints* time_points,
+        DatasetFilePaths& dsFiles)
         : _handle(handle)
         , _numEntities(numEntities)
         , _time_points(time_points)
+        , _dsFiles(dsFiles)
     {
     }
     ~GravitySource() { FreeDataset(); }
@@ -75,6 +78,7 @@ private:
     cublasHandle_t* _handle;
     int _numEntities;
     IFMTimePoints* _time_points;
+    DatasetFilePaths& _dsFiles;
 
     GravityDataset _dataset;
     GravityDataset* _devDataset = nullptr;

@@ -60,7 +60,7 @@ struct TriangularCyclicLambda {
 
 void GravitySource::Initialize()
 {
-    auto data = DatasetLoaders::LoadGravityModel("../../data/EIGEN-6S4_(v2).gfc");
+    auto data = DatasetLoaders::LoadGravityModel(_dsFiles.gravityModel);
     _dataset = data; // make a shallow copy to fill non-array elements
 
     size_t size = TRI_SIZE(data.N);

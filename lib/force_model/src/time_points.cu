@@ -75,7 +75,7 @@ void FMTimePoints::Initialize()
 {
     // Read datasets and place them in device memory
     // Nutation in longitude
-    auto nutLon = DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutLon.txt");
+    auto nutLon = DatasetLoaders::LoadNutationData(_dsFiles.nutationLon);
     _datasets.nutDataset.lon = nutLon; // Create a shallow copy of non-array parameters
     gpuErrchk(cudaMalloc(&_datasets.nutDataset.lon.j0, nutLon.j0_size * sizeof(NutationTerm)));
     gpuErrchk(cudaMalloc(&_datasets.nutDataset.lon.j1, nutLon.j1_size * sizeof(NutationTerm)));
@@ -87,7 +87,7 @@ void FMTimePoints::Initialize()
     delete[] nutLon.j1;
 
     // Nutation in obliquity
-    auto nutObl = DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutObl.txt");
+    auto nutObl = DatasetLoaders::LoadNutationData(_dsFiles.nutationObl);
     _datasets.nutDataset.obl = nutObl; // Create a shallow copy of non-array parameters
     gpuErrchk(cudaMalloc(&_datasets.nutDataset.obl.j0, nutObl.j0_size * sizeof(NutationTerm)));
     gpuErrchk(cudaMalloc(&_datasets.nutDataset.obl.j1, nutObl.j1_size * sizeof(NutationTerm)));
@@ -99,7 +99,7 @@ void FMTimePoints::Initialize()
     delete[] nutObl.j1;
 
     // EOP
-    auto eop = DatasetLoaders::LoadEOPData("../../data/IAU2000A_EOP.txt");
+    auto eop = DatasetLoaders::LoadEOPData(_dsFiles.eop);
     _datasets.eopDataset = eop; // Create a shallow copy of non-array parameters
     gpuErrchk(cudaMalloc(&_datasets.eopDataset.records, eop.size * sizeof(EOPRecord)));
     gpuErrchk(cudaMemcpy(_datasets.eopDataset.records, eop.records, eop.size * sizeof(EOPRecord),
@@ -107,7 +107,7 @@ void FMTimePoints::Initialize()
     delete[] eop.records;
 
     // Leap seconds
-    auto ls = DatasetLoaders::LoadLeapSeconds("../../data/leap-seconds.list");
+    auto ls = DatasetLoaders::LoadLeapSeconds(_dsFiles.leapSeconds);
     _datasets.lsDataset = ls; // Create a shallow copy of non-array parameters
     gpuErrchk(cudaMalloc(&_datasets.lsDataset.leap_seconds, ls.size * sizeof(double)));
     gpuErrchk(cudaMalloc(&_datasets.lsDataset.mjd_utc, ls.size * sizeof(double)));

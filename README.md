@@ -94,6 +94,11 @@ To propagate orbits for a set of objects:
 
 - `-i, --input`: Path to the input JSON file (Required).
 - `-o, --output`: Path to the output JSON file. Defaults to `propagation_out.json`.
+- `--gravity-model`: Path to the gravity model file. Defaults to `../../data/EIGEN-6S4_(v2).gfc`.
+- `--nutation-lon`: Path to IAU2000 nutation longitude file. Defaults to `../../data/IAU2000_R06_NutLon.txt`.
+- `--nutation-obl`: Path to IAU2000 nutation obliquity file. Defaults to `../../data/IAU2000_R06_NutObl.txt`.
+- `--eop`: Path to Earth Orientation Parameters (EOP) file. Defaults to `../../data/IAU2000A_EOP.txt`.
+- `--leap-seconds`: Path to leap seconds file. Defaults to `../../data/leap-seconds.list`.
 
 ### Calculate Closest Approach
 
@@ -107,6 +112,11 @@ To calculate closest approaches between objects:
 
 - `-i, --input`: Path to the input JSON file (Required).
 - `-o, --output`: Path to the output JSON file. Defaults to `closest_approach_out.json`.
+- `--gravity-model`: Path to the gravity model file. Defaults to `../../data/EIGEN-6S4_(v2).gfc`.
+- `--nutation-lon`: Path to IAU2000 nutation longitude file. Defaults to `../../data/IAU2000_R06_NutLon.txt`.
+- `--nutation-obl`: Path to IAU2000 nutation obliquity file. Defaults to `../../data/IAU2000_R06_NutObl.txt`.
+- `--eop`: Path to Earth Orientation Parameters (EOP) file. Defaults to `../../data/IAU2000A_EOP.txt`.
+- `--leap-seconds`: Path to leap seconds file. Defaults to `../../data/leap-seconds.list`.
 
 ### Input/Output Format
 

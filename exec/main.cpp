@@ -32,8 +32,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(PropagationOutput, propagationStart,
     propagationSeconds, positionsStart, velocitiesStart, positionsEnd, velocitiesEnd);
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
-    ClosestApproachRecord, objectIndex1, objectIndex2, distance, time, positionAx, positionAy, positionAz, positionBx, positionBy, positionBz);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ClosestApproachRecord, objectIndex1, objectIndex2, distance,
+    time, positionAx, positionAy, positionAz, positionBx, positionBy, positionBz);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
     ClosestApproachInput, propagationStart, propagationSeconds, positions, velocities, setIndices);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(ClosestApproachOutput, propagationStart,
@@ -58,12 +58,38 @@ int main(int argc, char** argv)
     std::string propagationOutputFile;
     std::string closestOutputFile;
 
+    DatasetFilePaths dsFiles;
+    auto registerDatasetFlags = [](CLI::App* sub, DatasetFilePaths& paths) {
+        auto* group
+            = sub->add_option_group("Data Files", "Astronomical and gravitational model datasets");
+        group->add_option("--gravity-model", paths.gravityModel, "Path to gravity model (.gfc)")
+            ->default_val(paths.gravityModel)
+            ->check(CLI::ExistingFile);
+        group
+            ->add_option(
+                "--nutation-lon", paths.nutationLon, "Path to IAU2000 nutation longitude file")
+            ->default_val(paths.nutationLon)
+            ->check(CLI::ExistingFile);
+        group
+            ->add_option(
+                "--nutation-obl", paths.nutationObl, "Path to IAU2000 nutation obliquity file")
+            ->default_val(paths.nutationObl)
+            ->check(CLI::ExistingFile);
+        group->add_option("--eop", paths.eop, "Path to Earth Orientation Parameters (EOP) file")
+            ->default_val(paths.eop)
+            ->check(CLI::ExistingFile);
+        group->add_option("--leap-seconds", paths.leapSeconds, "Path to leap seconds file")
+            ->default_val(paths.leapSeconds)
+            ->check(CLI::ExistingFile);
+    };
+
     CLI::App* cmdPropagate = app.add_subcommand("propagate", "Run orbit propagation");
     cmdPropagate->add_option("-i,--input", inputFile, "Input JSON file")
         ->required()
         ->check(CLI::ExistingFile); // CLI11 automatically checks if file exists!
     cmdPropagate->add_option("-o,--output", propagationOutputFile, "Output JSON file")
         ->default_val("propagation_out.json");
+    registerDatasetFlags(cmdPropagate, dsFiles);
 
     CLI::App* cmdClosest
         = app.add_subcommand("closest-approach", "Calculate closest approaches between objects");
@@ -72,6 +98,7 @@ int main(int argc, char** argv)
         ->check(CLI::ExistingFile);
     cmdClosest->add_option("-o,--output", closestOutputFile, "Output JSON file")
         ->default_val("closest_approach_out.json");
+    registerDatasetFlags(cmdClosest, dsFiles);
 
     CLI11_PARSE(app, argc, argv);
 
@@ -82,7 +109,7 @@ int main(int argc, char** argv)
         json jInput = json::parse(ifs);
         PropagationInput inputData = jInput.get<PropagationInput>();
 
-        PropagationOutput outputData = propagate(inputData);
+        PropagationOutput outputData = propagate(inputData, dsFiles);
 
         std::ofstream ofs(propagationOutputFile);
         json jOutput = outputData;
@@ -95,7 +122,7 @@ int main(int argc, char** argv)
         json jInput = json::parse(ifs);
         ClosestApproachInput inputData = jInput.get<ClosestApproachInput>();
 
-        ClosestApproachOutput outputData = closestApproach(inputData);
+        ClosestApproachOutput outputData = closestApproach(inputData, dsFiles);
 
         std::ofstream ofs(closestOutputFile);
         json jOutput = outputData;
