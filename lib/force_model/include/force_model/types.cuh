@@ -15,33 +15,120 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
+#include "gpu_utils/gpu_utils.cuh"
 #include "types/Parameters.hpp"
 #include <array>
 #include <cstddef>
 #include <cstring>
+#include <cuda_runtime_api.h>
+#include <utility>
+
+template <typename T> struct DevStruct {
+    T structure;
+    T* ptr = nullptr;
+
+    template <typename... Args>
+    DevStruct(Args&&... args)
+        : structure(std::forward<Args>(args)...)
+    {
+        gpuErrchk(cudaMalloc(&ptr, sizeof(T)));
+        gpuErrchk(cudaMemcpy(ptr, &structure, sizeof(T), cudaMemcpyHostToDevice));
+    }
+    ~DevStruct() { CUDA_SAFE_FREE(ptr); }
+
+    // Destroys the structure and constructs a new one in its place
+    template <typename... Args> void emplace(Args&&... args)
+    {
+        structure.~T();
+        new (&structure) T(std::forward<Args>(args)...);
+        gpuErrchk(cudaMemcpy(ptr, &structure, sizeof(T), cudaMemcpyHostToDevice));
+    }
+
+    DevStruct(const DevStruct&) = delete;
+    DevStruct& operator=(const DevStruct&) = delete;
+};
+
+template <typename T> struct DevArray {
+    DevArray() { }
+    DevArray(uint N) { alloc(N); }
+    ~DevArray() { CUDA_SAFE_FREE(ptr); }
+
+    void alloc(uint N) { gpuErrchk(cudaMalloc(&ptr, N * sizeof(T))); }
+    __host__ __device__ T* data() const { return ptr; }
+    __device__ T& operator[](size_t i) const { return ptr[i]; }
+
+    DevArray(const DevArray&) = delete;
+    DevArray& operator=(const DevArray&) = delete;
+
+private:
+    T* ptr = nullptr;
+};
+
+template <typename T> struct DevMatrixArray {
+    DevMatrixArray() { }
+    DevMatrixArray(uint matrix_count)
+        : array(matrix_count * dim * dim)
+    {
+    }
+
+    void alloc(uint matrix_count) { array.alloc(matrix_count * dim * dim); }
+    __host__ __device__ T* data() const { return array.data(); }
+    __device__ T& operator[](size_t i) const { return array.data()[i * dim * dim]; }
+
+    DevMatrixArray(const DevMatrixArray&) = delete;
+    DevMatrixArray& operator=(const DevMatrixArray&) = delete;
+
+private:
+    static constexpr int dim = 3;
+    DevArray<T> array;
+};
+
+struct TimePointParametersSlice {
+    double* ITRS_to_GCRS;
+    double* mjd;
+};
 
 struct TimePointParameters {
     // International Terrestrial Reference System (ITRS) to Geocentric Celestial Reference System
     // (GCRS) transformation matrix. The inverse transformation (GCRS to ITRS) is the transpose of
     // this matrix, since it's orthogonal.
-    double* ITRS_to_GCRS = nullptr;
-    double* mjd = nullptr;
+    DevMatrixArray<double> ITRS_to_GCRS;
+    DevArray<double> mjd;
+
+    TimePointParameters() { }
+    TimePointParameters(uint N)
+        : ITRS_to_GCRS(N)
+        , mjd(N)
+    {
+    }
 };
 
 struct TimePointTempParameters {
     // 4 matrices, which multiplied give the Q(t) matrix
-    double* Q_R1 = nullptr;
-    double* Q_R2 = nullptr;
-    double* Q_R3 = nullptr;
-    double* Q_R4 = nullptr;
+    DevMatrixArray<double> Q_R1;
+    DevMatrixArray<double> Q_R2;
+    DevMatrixArray<double> Q_R3;
+    DevMatrixArray<double> Q_R4;
 
     // 3 matrices, which multiplied give the W(t) matrix
-    double* W_R1 = nullptr;
-    double* W_R2 = nullptr;
-    double* W_R3 = nullptr;
+    DevMatrixArray<double> W_R1;
+    DevMatrixArray<double> W_R2;
+    DevMatrixArray<double> W_R3;
 
     // The R(t) matrix
-    double* R = nullptr;
+    DevMatrixArray<double> R;
+
+    TimePointTempParameters(uint N)
+        : Q_R1(N)
+        , Q_R2(N)
+        , Q_R3(N)
+        , Q_R4(N)
+        , W_R1(N)
+        , W_R2(N)
+        , W_R3(N)
+        , R(N)
+    {
+    }
 };
 
 struct NutationTerm {

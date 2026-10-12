@@ -31,7 +31,7 @@ protected:
 
     // Variables for the mock's identity matrix on the device
     double* devIdentityMatrix = nullptr;
-    TimePointParameters default_params;
+    TimePointParametersSlice default_params;
 
     void SetUp() override
     {

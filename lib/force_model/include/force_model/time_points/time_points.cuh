@@ -35,16 +35,11 @@ public:
         , _dsFiles(dsFiles)
     {
     }
-    ~FMTimePoints()
-    {
-        FreeDatasets();
-        FreeParameters();
-        FreeTempParameters();
-    }
+    ~FMTimePoints() { FreeDatasets(); }
 
     virtual void Initialize() override;
     virtual void CalculateParameters(int arrayLength, bool useMidpoints, int beforeEpoch) override;
-    virtual TimePointParameters GetParametersDev(int stepNum) override;
+    virtual TimePointParametersSlice GetParametersDev(int stepNum) override;
     virtual TimeData GetStartTime() override;
 
 private:
@@ -57,16 +52,9 @@ private:
     TimePointDatasets* _devDatasets = nullptr;
     void FreeDatasets();
 
-    TimePointParameters _timePointParameters;
-    TimePointParameters* _devTimePointParameters = nullptr;
-    void AllocateParameters(int arrayLength);
-    void FreeParameters();
+    DevStruct<TimePointParameters> _timePointParams;
 
-    TimePointTempParameters _tempInitParameters;
-    TimePointTempParameters* _devTempInitParameters = nullptr;
-    void AllocateTempParameters(int arrayLength);
-    void FreeTempParameters();
-
-    void MultiplyMatrices(int arrayLength, double* A, double* B, double* out);
-    void ComputeITRStoGCRS(int arrayLength);
+    void MultiplyMatrices(int arrayLength, DevMatrixArray<double>& A, DevMatrixArray<double>& B,
+        DevMatrixArray<double>& out);
+    void ComputeITRStoGCRS(int arrayLength, TimePointTempParameters& tempParams);
 };

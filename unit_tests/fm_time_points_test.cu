@@ -127,7 +127,7 @@ TEST_F(ForceModelTimePointsTest, GetParameters)
 
     timePoints.CalculateParameters(1, false, 0);
 
-    TimePointParameters paramsDev = timePoints.GetParametersDev(0);
+    TimePointParametersSlice paramsDev = timePoints.GetParametersDev(0);
     double ITRS_to_GCRS[9];
     cudaMemcpy(&ITRS_to_GCRS, paramsDev.ITRS_to_GCRS, sizeof(ITRS_to_GCRS), cudaMemcpyDeviceToHost);
 
@@ -147,7 +147,7 @@ TEST_F(ForceModelTimePointsTest, GetMultipleParametersSequence)
     timePoints.CalculateParameters(numSteps, false, 0);
 
     for (int i = 0; i < numSteps; ++i) {
-        TimePointParameters paramsDev = timePoints.GetParametersDev(i);
+        TimePointParametersSlice paramsDev = timePoints.GetParametersDev(i);
 
         double ITRS_to_GCRS_host[9];
         cudaMemcpy(&ITRS_to_GCRS_host, paramsDev.ITRS_to_GCRS, sizeof(ITRS_to_GCRS_host),
@@ -176,7 +176,7 @@ TEST_F(ForceModelTimePointsTest, GetMultipleParametersSequenceBeforeEpoch)
     timePoints.CalculateParameters(numSteps, false, beforeEpoch);
 
     for (int i = 0; i < numSteps; ++i) {
-        TimePointParameters paramsDev = timePoints.GetParametersDev(i);
+        TimePointParametersSlice paramsDev = timePoints.GetParametersDev(i);
 
         double ITRS_to_GCRS_host[9];
         cudaMemcpy(&ITRS_to_GCRS_host, paramsDev.ITRS_to_GCRS, sizeof(ITRS_to_GCRS_host),
@@ -206,7 +206,7 @@ TEST_F(ForceModelTimePointsTest, GetMultipleParametersSequenceWithMidpoints)
         2.0 / 3.0, 1.0 / 6.0, 1.0, 5.0 / 6.0, 1.0 };
 
     for (int i = 0; i < numSteps; ++i) {
-        TimePointParameters paramsDev = timePoints.GetParametersDev(i);
+        TimePointParametersSlice paramsDev = timePoints.GetParametersDev(i);
 
         double ITRS_to_GCRS_host[9];
         cudaMemcpy(&ITRS_to_GCRS_host, paramsDev.ITRS_to_GCRS, sizeof(ITRS_to_GCRS_host),

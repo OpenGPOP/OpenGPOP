@@ -26,6 +26,6 @@ public:
     MOCK_METHOD(void, Initialize, (), (override));
     MOCK_METHOD(void, CalculateParameters, (int arrayLength, bool useMidpoints, int beforeEpoch),
         (override));
-    MOCK_METHOD(TimePointParameters, GetParametersDev, (int stepNum), (override));
+    MOCK_METHOD(TimePointParametersSlice, GetParametersDev, (int stepNum), (override));
     MOCK_METHOD(TimeData, GetStartTime, (), (override));
 };

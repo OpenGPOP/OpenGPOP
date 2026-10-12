@@ -25,7 +25,7 @@ struct IFMTimePoints {
     virtual void CalculateParameters(int arrayLength, bool useMidpoints, int beforeEpoch) = 0;
 
     // Returns a structure of device pointers shifted to the requested position
-    virtual TimePointParameters GetParametersDev(int stepNum) = 0;
+    virtual TimePointParametersSlice GetParametersDev(int stepNum) = 0;
 
     virtual TimeData GetStartTime() = 0;
 };
