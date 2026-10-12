@@ -80,9 +80,10 @@ void GravitySource::Initialize()
     delete[] data.is_gfct;
 
     // Copy reference epoch
-    gpuErrchk(cudaMalloc(&_dataset.t0, size * sizeof(double)));
-    gpuErrchk(cudaMemcpy(_dataset.t0, data.t0, size * sizeof(double), cudaMemcpyHostToDevice));
-    delete[] data.t0;
+    gpuErrchk(cudaMalloc(&_dataset.t0_mjd, size * sizeof(double)));
+    gpuErrchk(
+        cudaMemcpy(_dataset.t0_mjd, data.t0_mjd, size * sizeof(double), cudaMemcpyHostToDevice));
+    delete[] data.t0_mjd;
 
     // Copy secular trends
     gpuErrchk(cudaMalloc(&_dataset.trnd_C, size * sizeof(double)));
@@ -197,7 +198,7 @@ void GravitySource::FreeDataset()
     CUDA_SAFE_FREE(_dataset.Snm);
 
     CUDA_SAFE_FREE(_dataset.is_gfct);
-    CUDA_SAFE_FREE(_dataset.t0);
+    CUDA_SAFE_FREE(_dataset.t0_mjd);
 
     CUDA_SAFE_FREE(_dataset.trnd_C);
     CUDA_SAFE_FREE(_dataset.trnd_S);
@@ -266,7 +267,7 @@ void GravitySource::ComputeAcceleration(
     gpuErrchk(cudaGetLastError());
     gpuErrchk(cudaDeviceSynchronize());
 
-    SumM();
+    SumM(timePoint.mjd);
     SumN();
 
     // Calculate acceleration
@@ -283,23 +284,13 @@ void GravitySource::ComputeAcceleration(
             _devAccelerationInITRS, 1, 3, &beta, out, 1, outStride * 3, _numEntities));
 }
 
-double GravitySource::GetDecimalYear()
-{
-    auto start_time = _time_points->GetStartTime();
-    const int days_before_month[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-    int m_idx = (start_time.Month >= 1 && start_time.Month <= 12) ? (start_time.Month - 1) : 0;
-    double day_frac = (start_time.Day - 1.0)
-        + (start_time.Hour + (start_time.Min + start_time.Sec / 60.0) / 60.0) / 24.0;
-    return start_time.Year + ((days_before_month[m_idx] + day_frac) / 365.25);
-}
-
-void GravitySource::SumM()
+void GravitySource::SumM(double* devMjd)
 {
     // Prepare M summation
     int threadsPerBlock = 256;
     int numOfThreads = _numEntities * TRI_SIZE(_dataset.N);
     int blockCount = numOfThreads / threadsPerBlock + 1;
-    PrepareMSumKernel<<<blockCount, threadsPerBlock>>>(_devDataset, _numEntities, GetDecimalYear());
+    PrepareMSumKernel<<<blockCount, threadsPerBlock>>>(_devDataset, _numEntities, devMjd);
     gpuErrchk(cudaGetLastError());
     gpuErrchk(cudaDeviceSynchronize());
 

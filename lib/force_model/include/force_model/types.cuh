@@ -177,7 +177,7 @@ struct GravityDataset {
     double* asin1_S = nullptr;
     double* acos05_S = nullptr;
     double* asin05_S = nullptr;
-    double* t0 = nullptr;
+    double* t0_mjd = nullptr;
 
     // Sin and Cos values used for computation (eq. 3-18)
     double* Cm_bar = nullptr; // Linear, of size numEntities * (N - 1)

@@ -120,14 +120,14 @@ __global__ void ComputeCmSmKernel(GravityDataset* dataset, double* positions, in
     }
 }
 
-__device__ double GetCSCoefficient(GravityDataset* dataset, bool C, int index, double decimal_year)
+__device__ double GetCSCoefficient(GravityDataset* dataset, bool C, int index, double* mjd)
 {
     double val = C ? dataset->Cnm[index] : dataset->Snm[index];
 
     if (!dataset->is_gfct[index])
         return val;
 
-    double dt = decimal_year - dataset->t0[index];
+    double dt = (*mjd - dataset->t0_mjd[index]) / 365.25;
     double cos1 = cos(2.0 * CFMConst::PI * dt);
     double sin1 = sin(2.0 * CFMConst::PI * dt);
     double cos05 = cos(4.0 * CFMConst::PI * dt);
@@ -146,7 +146,7 @@ __device__ double GetCSCoefficient(GravityDataset* dataset, bool C, int index, d
     return val;
 }
 
-__global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities, double decimal_year)
+__global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities, double* mjd)
 {
     auto tIdx = blockIdx.x * blockDim.x + threadIdx.x;
     auto N = dataset->N;
@@ -167,8 +167,8 @@ __global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities, doub
     else
         Pnm1 = 0;
 
-    double Cnm = GetCSCoefficient(dataset, true, nm_index, decimal_year);
-    double Snm = GetCSCoefficient(dataset, false, nm_index, decimal_year);
+    double Cnm = GetCSCoefficient(dataset, true, nm_index, mjd);
+    double Snm = GetCSCoefficient(dataset, false, nm_index, mjd);
 
     if (n < 2) {
         dataset->J[tIdx] = 0;
@@ -184,7 +184,7 @@ __global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities, doub
         // for simplicity's sake, we made all these arrays the same size
         double Pn0 = P_bar[n0_index];
         double Pn1 = P_bar[TRI_C2IDX(n, 1)];
-        double Cn0 = GetCSCoefficient(dataset, true, n0_index, decimal_year);
+        double Cn0 = GetCSCoefficient(dataset, true, n0_index, mjd);
         dataset->J[tIdx] = 0;
         dataset->K[tIdx] = 0;
         dataset->G[tIdx] = Cn0 * (n + 1) * Pn0;

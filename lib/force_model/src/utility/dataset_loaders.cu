@@ -216,23 +216,27 @@ __host__ LeapSecondDataset LoadLeapSeconds(const std::string& filepath)
     return dataset;
 }
 
-// Helper to convert ICGEM date formats ("YYYYMMDD.xxxx" or "YYYYMMDD") to decimal years
-static double ParseIcgemDate(const std::string& str)
+// Helper to convert ICGEM date formats ("YYYYMMDD.hhmm" or "YYYYMMDD") to MJD
+static double DateToMjd(const std::string& str)
 {
     if (str.length() < 8)
         return 0.0;
-    double year = std::stod(str.substr(0, 4));
-    int month = std::stoi(str.substr(4, 2));
-    double day = std::stod(str.substr(6, 2));
+
+    int year = std::stoi(str.substr(0, 4));
+    int mon = std::stoi(str.substr(4, 2));
+    int day = std::stoi(str.substr(6, 2));
+
+    int hour = 0;
+    int min = 0;
     size_t dot_pos = str.find('.');
     if (dot_pos != std::string::npos && dot_pos + 1 < str.length()) {
-        day += std::stod("0." + str.substr(dot_pos + 1));
+        std::string hm = str.substr(dot_pos + 1);
+        hm.resize(4, '0');
+        hour = std::stoi(hm.substr(0, 2));
+        min = std::stoi(hm.substr(2, 2));
     }
-    static const int days_before_month[]
-        = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-    int m_idx = (month >= 1 && month <= 12) ? (month - 1) : 0;
-    double day_of_year = days_before_month[m_idx] + (day - 1.0);
-    return year + (day_of_year / 365.25);
+
+    return RefSysTrans::CalendarToMJD(year, mon, day, hour, min, 0.0);
 }
 
 __host__ GravityDataset LoadGravityModel(const std::string& filepath)
@@ -288,7 +292,7 @@ __host__ GravityDataset LoadGravityModel(const std::string& filepath)
     dataset.asin1_S = new double[totalElements] { 0.0 };
     dataset.acos05_S = new double[totalElements] { 0.0 };
     dataset.asin05_S = new double[totalElements] { 0.0 };
-    dataset.t0 = new double[totalElements] { 0.0 };
+    dataset.t0_mjd = new double[totalElements] { 0.0 };
 
     // 3. Parse Data Lines
     bool firstDataLine = true;
@@ -350,7 +354,7 @@ __host__ GravityDataset LoadGravityModel(const std::string& filepath)
             double sigC, sigS;
             std::string t0_str;
             if (iss >> sigC >> sigS >> t0_str) {
-                dataset.t0[idx] = ParseIcgemDate(t0_str);
+                dataset.t0_mjd[idx] = DateToMjd(t0_str);
             }
 
         } else if (key == "trnd") {

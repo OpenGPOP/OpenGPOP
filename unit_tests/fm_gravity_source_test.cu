@@ -125,7 +125,6 @@ TEST_F(GravitySourceTest, ComputeAccelerationOneByOne)
     double tolerance = 1e-10;
 
     EXPECT_CALL(timePoints, GetParametersDev(stepNum)).Times(10);
-    EXPECT_CALL(timePoints, GetStartTime()).Times(10);
     for (int i = 0; i < 10; ++i) {
         double pos[3] = { positions[i * 3 + 0], positions[i * 3 + 1], positions[i * 3 + 2] };
         cudaMemcpy(devPosition, pos, bytes, cudaMemcpyHostToDevice);
@@ -167,7 +166,6 @@ TEST_F(GravitySourceTest, ComputeAccelerationBatched)
     int outStride = 1;
 
     EXPECT_CALL(timePoints, GetParametersDev(stepNum)).Times(1);
-    EXPECT_CALL(timePoints, GetStartTime()).Times(1);
     gravity.ComputeAcceleration(devPosition, devVelocity, stepNum, out, outStride);
 
     double hostOut[30];
