@@ -29,7 +29,7 @@ namespace DatasetLoaders {
 // A single function to load either the Longitude or Obliquity nutation tables
 NutationTables LoadNutationData(const std::string& filepath)
 {
-    NutationTables tables {};
+    NutationTables tables { };
     std::ifstream file(filepath);
 
     if (!file.is_open()) {
@@ -216,6 +216,29 @@ __host__ LeapSecondDataset LoadLeapSeconds(const std::string& filepath)
     return dataset;
 }
 
+// Helper to convert ICGEM date formats ("YYYYMMDD.hhmm" or "YYYYMMDD") to MJD
+static double DateToMjd(const std::string& str)
+{
+    if (str.length() < 8)
+        return 0.0;
+
+    int year = std::stoi(str.substr(0, 4));
+    int mon = std::stoi(str.substr(4, 2));
+    int day = std::stoi(str.substr(6, 2));
+
+    int hour = 0;
+    int min = 0;
+    size_t dot_pos = str.find('.');
+    if (dot_pos != std::string::npos && dot_pos + 1 < str.length()) {
+        std::string hm = str.substr(dot_pos + 1);
+        hm.resize(4, '0');
+        hour = std::stoi(hm.substr(0, 2));
+        min = std::stoi(hm.substr(2, 2));
+    }
+
+    return RefSysTrans::CalendarToMJD(year, mon, day, hour, min, 0.0);
+}
+
 __host__ GravityDataset LoadGravityModel(const std::string& filepath)
 {
     std::ifstream file(filepath);
@@ -258,6 +281,18 @@ __host__ GravityDataset LoadGravityModel(const std::string& filepath)
 
     dataset.Cnm = new double[totalElements] { 0.0 };
     dataset.Snm = new double[totalElements] { 0.0 };
+    dataset.is_gfct = new bool[totalElements] { false };
+    dataset.trnd_C = new double[totalElements] { 0.0 };
+    dataset.acos1_C = new double[totalElements] { 0.0 };
+    dataset.asin1_C = new double[totalElements] { 0.0 };
+    dataset.acos05_C = new double[totalElements] { 0.0 };
+    dataset.asin05_C = new double[totalElements] { 0.0 };
+    dataset.trnd_S = new double[totalElements] { 0.0 };
+    dataset.acos1_S = new double[totalElements] { 0.0 };
+    dataset.asin1_S = new double[totalElements] { 0.0 };
+    dataset.acos05_S = new double[totalElements] { 0.0 };
+    dataset.asin05_S = new double[totalElements] { 0.0 };
+    dataset.t0_mjd = new double[totalElements] { 0.0 };
 
     // 3. Parse Data Lines
     bool firstDataLine = true;
@@ -267,11 +302,12 @@ __host__ GravityDataset LoadGravityModel(const std::string& filepath)
 
         std::istringstream iss(line);
         std::string key;
-        iss >> key;
+        if (!(iss >> key))
+            continue;
 
         // Check the first data line rule
         if (firstDataLine) {
-            if (key != "gfc") {
+            if (key != "gfc" && key != "gfct") {
                 throw std::runtime_error(
                     "Error: Only static models (gfc) are accepted. Found: " + key);
             }
@@ -279,23 +315,72 @@ __host__ GravityDataset LoadGravityModel(const std::string& filepath)
         }
 
         // Parse coefficients
-        if (key == "gfc") {
-            unsigned L, M;
-            double C_val, S_val;
+        if (key != "gfc" && key != "gfct" && key != "trnd" && key != "acos" && key != "asin")
+            continue;
 
-            // Extract L, M, C, S
-            if (iss >> L >> M >> C_val >> S_val) {
-                // Bounds check: L must be less than N (since N is max_degree + 1)
-                if (L < dataset.N && M <= L) {
-                    size_t idx = TRI_C2IDX(L, M);
-                    dataset.Cnm[idx] = C_val;
-                    dataset.Snm[idx] = S_val;
-                }
+        unsigned L, M;
+        double C_val, S_val;
+
+        // Extract L, M, C, S
+        if (!(iss >> L >> M >> C_val >> S_val))
+            continue;
+
+        // Bounds check: L must be less than N (since N is max_degree + 1)
+        if (L >= dataset.N || M > L)
+            continue;
+
+        size_t idx = TRI_C2IDX(L, M);
+
+        if (key == "gfc") {
+            dataset.Cnm[idx] = C_val;
+            dataset.Snm[idx] = S_val;
+            dataset.is_gfct[idx] = false;
+
+        } else if (key == "gfct") {
+            dataset.Cnm[idx] = C_val;
+            dataset.Snm[idx] = S_val;
+            dataset.is_gfct[idx] = true;
+            dataset.trnd_C[idx] = 0.0;
+            dataset.acos1_C[idx] = 0.0;
+            dataset.asin1_C[idx] = 0.0;
+            dataset.acos05_C[idx] = 0.0;
+            dataset.asin05_C[idx] = 0.0;
+            dataset.trnd_S[idx] = 0.0;
+            dataset.acos1_S[idx] = 0.0;
+            dataset.asin1_S[idx] = 0.0;
+            dataset.acos05_S[idx] = 0.0;
+            dataset.asin05_S[idx] = 0.0;
+
+            double sigC, sigS;
+            std::string t0_str;
+            if (iss >> sigC >> sigS >> t0_str) {
+                dataset.t0_mjd[idx] = DateToMjd(t0_str);
+            }
+
+        } else if (key == "trnd") {
+            dataset.trnd_C[idx] = C_val;
+            dataset.trnd_S[idx] = S_val;
+
+        } else if (key == "acos") {
+            if (line.find(" 1.0") != std::string::npos) {
+                dataset.acos1_C[idx] = C_val;
+                dataset.acos1_S[idx] = S_val;
+            } else if (line.find(" 0.5") != std::string::npos) {
+                dataset.acos05_C[idx] = C_val;
+                dataset.acos05_S[idx] = S_val;
+            }
+
+        } else if (key == "asin") {
+            if (line.find(" 1.0") != std::string::npos) {
+                dataset.asin1_C[idx] = C_val;
+                dataset.asin1_S[idx] = S_val;
+            } else if (line.find(" 0.5") != std::string::npos) {
+                dataset.asin05_C[idx] = C_val;
+                dataset.asin05_S[idx] = S_val;
             }
         }
     }
 
     return dataset;
 }
-
 }

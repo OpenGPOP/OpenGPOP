@@ -20,6 +20,7 @@
 #include "force_model/acceleration/iacceleration_source.cuh"
 #include "force_model/time_points/itime_points.cuh"
 #include "force_model/types.cuh"
+#include "types/Parameters.hpp"
 #include <string>
 
 // Computes xi(n,m), eta(n,m), and zeta(n,m) tables of auxiliary coefficients (eq. 7-10, 7-19)
@@ -40,7 +41,7 @@ __global__ void ComputeCmSmKernel(GravityDataset* dataset, double* positions, in
 
 // Prepares summation elements for Gn, Hn, Jn, and Kn (eq. 4-11)
 // Run with numEntities * TRIANGULAR_SIZE(N) threads.
-__global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities);
+__global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities, double* mjd);
 
 // Prepares summation elements for G, H, J, and K (eq. 4-12)
 // Run with numEntities threads.
@@ -59,10 +60,12 @@ __global__ void CalculateAcceleration(
 // https://ntrs.nasa.gov/api/citations/19940025085/downloads/19940025085.pdf
 class GravitySource : public IAccelerationSource {
 public:
-    GravitySource(cublasHandle_t* handle, int numEntities, IFMTimePoints* time_points)
+    GravitySource(cublasHandle_t* handle, int numEntities, IFMTimePoints* time_points,
+        DatasetFilePaths& dsFiles)
         : _handle(handle)
         , _numEntities(numEntities)
         , _time_points(time_points)
+        , _dsFiles(dsFiles)
     {
     }
     ~GravitySource() { FreeDataset(); }
@@ -75,6 +78,7 @@ private:
     cublasHandle_t* _handle;
     int _numEntities;
     IFMTimePoints* _time_points;
+    DatasetFilePaths& _dsFiles;
 
     GravityDataset _dataset;
     GravityDataset* _devDataset = nullptr;
@@ -83,6 +87,6 @@ private:
     double* _devPositionInITRS = nullptr;
     double* _devAccelerationInITRS = nullptr;
 
-    void SumM();
+    void SumM(double* devMjd);
     void SumN();
 };

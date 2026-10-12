@@ -1,5 +1,4 @@
-build-debug
-build-release
+build-*
 .vscode/*
 !.vscode/launch.json
 !.vscode/tasks.json

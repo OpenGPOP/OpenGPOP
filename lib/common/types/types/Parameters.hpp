@@ -15,12 +15,22 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
+#include <string>
 
 struct TimeData {
     int Year, Month, Day, Hour, Min;
     double Sec;
 };
 
+struct DatasetFilePaths {
+    std::string gravityModel = "../../data/EIGEN-6S4_(v2).gfc";
+    std::string nutationLon = "../../data/IAU2000_R06_NutLon.txt";
+    std::string nutationObl = "../../data/IAU2000_R06_NutObl.txt";
+    std::string eop = "../../data/IAU2000A_EOP.txt";
+    std::string leapSeconds = "../../data/leap-seconds.list";
+};
+
 struct FullPerturbationParameters {
     TimeData StartTimeUTC;
+    DatasetFilePaths dsFiles;
 };

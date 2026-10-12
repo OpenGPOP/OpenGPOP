@@ -78,6 +78,7 @@ protected:
         .Year = 2025, .Month = 10, .Day = 22, .Hour = 11, .Min = 0, .Sec = 0.0
     };
     double defaultStepSize = 30;
+    DatasetFilePaths dsFiles = { };
 
     void SetUp() override
     {
@@ -99,18 +100,19 @@ protected:
 
 TEST_F(ForceModelTimePointsTest, CanConstructAndDestruct)
 {
-    EXPECT_NO_THROW({ FMTimePoints timePoints(&cublasHandle, defaultStepSize, defaultStartTime); });
+    EXPECT_NO_THROW(
+        { FMTimePoints timePoints(&cublasHandle, defaultStepSize, defaultStartTime, dsFiles); });
 }
 
 TEST_F(ForceModelTimePointsTest, InitializeCompletesSuccessfully)
 {
-    FMTimePoints timePoints(&cublasHandle, defaultStepSize, defaultStartTime);
+    FMTimePoints timePoints(&cublasHandle, defaultStepSize, defaultStartTime, dsFiles);
     timePoints.Initialize();
 }
 
 TEST_F(ForceModelTimePointsTest, CalculateParameters)
 {
-    FMTimePoints timePoints(&cublasHandle, defaultStepSize, defaultStartTime);
+    FMTimePoints timePoints(&cublasHandle, defaultStepSize, defaultStartTime, dsFiles);
     timePoints.Initialize();
 
     timePoints.CalculateParameters(100, false, 0);
@@ -120,7 +122,7 @@ TEST_F(ForceModelTimePointsTest, CalculateParameters)
 
 TEST_F(ForceModelTimePointsTest, GetParameters)
 {
-    FMTimePoints timePoints(&cublasHandle, defaultStepSize, defaultStartTime);
+    FMTimePoints timePoints(&cublasHandle, defaultStepSize, defaultStartTime, dsFiles);
     timePoints.Initialize();
 
     timePoints.CalculateParameters(1, false, 0);
@@ -139,7 +141,7 @@ TEST_F(ForceModelTimePointsTest, GetMultipleParametersSequence)
 {
     const int numSteps = 10;
     const int stepSize = 86400 * 50; // large step to check far-spread dates
-    FMTimePoints timePoints(&cublasHandle, stepSize, defaultStartTime);
+    FMTimePoints timePoints(&cublasHandle, stepSize, defaultStartTime, dsFiles);
     timePoints.Initialize();
 
     timePoints.CalculateParameters(numSteps, false, 0);
@@ -168,7 +170,7 @@ TEST_F(ForceModelTimePointsTest, GetMultipleParametersSequenceBeforeEpoch)
     const int numSteps = 15;
     const int stepSize = 86400 * 50;
 
-    FMTimePoints timePoints(&cublasHandle, stepSize, defaultStartTime);
+    FMTimePoints timePoints(&cublasHandle, stepSize, defaultStartTime, dsFiles);
     timePoints.Initialize();
 
     timePoints.CalculateParameters(numSteps, false, beforeEpoch);
@@ -195,7 +197,7 @@ TEST_F(ForceModelTimePointsTest, GetMultipleParametersSequenceWithMidpoints)
 {
     const int numSteps = 30;
     const int stepSize = 86400 * 50; // large step to check far-spread dates
-    FMTimePoints timePoints(&cublasHandle, stepSize, defaultStartTime);
+    FMTimePoints timePoints(&cublasHandle, stepSize, defaultStartTime, dsFiles);
     timePoints.Initialize();
 
     timePoints.CalculateParameters(numSteps, true, 0);

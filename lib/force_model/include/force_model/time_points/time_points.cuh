@@ -27,10 +27,12 @@ __global__ void TimePointParamsKernel(TimePointDatasets* datasets,
 // parameters that depend only on time
 class FMTimePoints : public IFMTimePoints {
 public:
-    FMTimePoints(cublasHandle_t* cublasHandle, double stepSize, TimeData startTime)
+    FMTimePoints(cublasHandle_t* cublasHandle, double stepSize, TimeData startTime,
+        DatasetFilePaths& dsFiles)
         : _cublasHandle(cublasHandle)
         , _stepSize(stepSize)
         , _startTime(startTime)
+        , _dsFiles(dsFiles)
     {
     }
     ~FMTimePoints()
@@ -43,11 +45,13 @@ public:
     virtual void Initialize() override;
     virtual void CalculateParameters(int arrayLength, bool useMidpoints, int beforeEpoch) override;
     virtual TimePointParameters GetParametersDev(int stepNum) override;
+    virtual TimeData GetStartTime() override;
 
 private:
     cublasHandle_t* _cublasHandle;
     double _stepSize;
     TimeData _startTime;
+    DatasetFilePaths& _dsFiles;
 
     TimePointDatasets _datasets;
     TimePointDatasets* _devDatasets = nullptr;

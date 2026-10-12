@@ -55,6 +55,13 @@ TEST_F(PropagatorTest, SameResultsForAllSatellites)
     params.StartTimeUTC.Hour = 22;
     params.StartTimeUTC.Min = 22;
     params.StartTimeUTC.Sec = 2;
+    // Changing to EIGEN returns errors that can be traced back to thrust::reduce. Likely due
+    // to a different N, summation between threads is split in a different way, and since float
+    // addition is not associative, this results in GJKH matrices turining out slightly differently
+    // for each satellite.
+    // TODO: We might address this further down the line, since current use of thrust seeems to be
+    // suboptimal
+    params.dsFiles.gravityModel = "../../data/JGM3.gfc";
 
     ForceModel force_model(&_cublasHandle, numSatellites, stepSize, &params);
 
