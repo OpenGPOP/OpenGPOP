@@ -23,18 +23,20 @@
 #include <cuda_runtime_api.h>
 #include <utility>
 
-template <typename T> struct DevStruct {
+template <typename T> struct GpopStruct {
     T structure;
     T* ptr = nullptr;
 
     template <typename... Args>
-    DevStruct(Args&&... args)
+    GpopStruct(Args&&... args)
         : structure(std::forward<Args>(args)...)
     {
         gpuErrchk(cudaMalloc(&ptr, sizeof(T)));
         gpuErrchk(cudaMemcpy(ptr, &structure, sizeof(T), cudaMemcpyHostToDevice));
     }
-    ~DevStruct() { CUDA_SAFE_FREE(ptr); }
+    ~GpopStruct() { CUDA_SAFE_FREE(ptr); }
+
+    void copyToDev() { gpuErrchk(cudaMemcpy(ptr, &structure, sizeof(T), cudaMemcpyHostToDevice)); }
 
     // Destroys the structure and constructs a new one in its place
     template <typename... Args> void emplace(Args&&... args)
@@ -44,43 +46,95 @@ template <typename T> struct DevStruct {
         gpuErrchk(cudaMemcpy(ptr, &structure, sizeof(T), cudaMemcpyHostToDevice));
     }
 
-    DevStruct(const DevStruct&) = delete;
-    DevStruct& operator=(const DevStruct&) = delete;
+    GpopStruct(const GpopStruct&) = delete;
+    GpopStruct& operator=(const GpopStruct&) = delete;
 };
 
-template <typename T> struct DevArray {
-    DevArray() { }
-    DevArray(uint N) { alloc(N); }
-    ~DevArray() { CUDA_SAFE_FREE(ptr); }
-
-    void alloc(uint N) { gpuErrchk(cudaMalloc(&ptr, N * sizeof(T))); }
-    __host__ __device__ T* data() const { return ptr; }
-    __device__ T& operator[](size_t i) const { return ptr[i]; }
-
-    DevArray(const DevArray&) = delete;
-    DevArray& operator=(const DevArray&) = delete;
-
-private:
-    T* ptr = nullptr;
-};
-
-template <typename T> struct DevMatrixArray {
-    DevMatrixArray() { }
-    DevMatrixArray(uint matrix_count)
-        : array(matrix_count * dim * dim)
+template <typename T> struct GpopArray {
+    GpopArray() { }
+    ~GpopArray()
     {
+        if (_isDev) {
+            CUDA_SAFE_FREE(_ptr);
+        } else {
+            delete[] _ptr;
+        }
     }
 
-    void alloc(uint matrix_count) { array.alloc(matrix_count * dim * dim); }
-    __host__ __device__ T* data() const { return array.data(); }
-    __device__ T& operator[](size_t i) const { return array.data()[i * dim * dim]; }
+    __host__ void allocDev(uint N)
+    {
+        if (_ptr)
+            return;
+        gpuErrchk(cudaMalloc(&_ptr, N * sizeof(T)));
+        _N = N;
+        _isDev = true;
+    }
+    __host__ void allocHost(uint N)
+    {
+        if (_ptr)
+            return;
+        _ptr = new T[N]();
+        _N = N;
+    };
 
-    DevMatrixArray(const DevMatrixArray&) = delete;
-    DevMatrixArray& operator=(const DevMatrixArray&) = delete;
+    __host__ void moveToDev()
+    {
+        if (!_ptr || _isDev)
+            return;
+        T* hostPtr = _ptr;
+        gpuErrchk(cudaMalloc(&_ptr, _N * sizeof(T)));
+        gpuErrchk(cudaMemcpy(_ptr, hostPtr, _N * sizeof(T), cudaMemcpyHostToDevice));
+        delete[] hostPtr;
+        _isDev = true;
+    }
+
+    __host__ void set(void* hostPtr, size_t count)
+    {
+        if (!_ptr)
+            return;
+        if (_isDev) {
+            gpuErrchk(cudaMemcpy(_ptr, hostPtr, count * sizeof(T), cudaMemcpyHostToDevice));
+        } else
+            std::memcpy(_ptr, hostPtr, count * sizeof(T));
+    }
+
+    __host__ __device__ bool isDev() const { return _isDev; }
+    __host__ __device__ T* get() const { return _ptr; }
+    __host__ __device__ T& operator[](size_t i) const { return _ptr[i]; }
+    __host__ __device__ uint size() const { return _N; }
+
+    GpopArray(const GpopArray&) = delete;
+    GpopArray& operator=(const GpopArray&) = delete;
+
+private:
+    bool _isDev = false;
+    T* _ptr = nullptr;
+    uint _N = 0;
+};
+
+template <typename T> struct GpopMatrixArray {
+    GpopMatrixArray() { }
+
+    __host__ void allocDev(uint matrix_count) { array.allocDev(matrix_count * dim * dim); }
+    __host__ void allocHost(uint matrix_count) { array.allocHost(matrix_count * dim * dim); }
+
+    __host__ __device__ bool isDev() { return array.isDev(); }
+    __host__ __device__ T* get() { return array.get(); }
+
+    __host__ __device__ T* at(uint i)
+    {
+        T* ptr = array.get();
+        if (!ptr)
+            return nullptr;
+        return ptr + i * dim * dim;
+    }
+
+    GpopMatrixArray(const GpopMatrixArray&) = delete;
+    GpopMatrixArray& operator=(const GpopMatrixArray&) = delete;
 
 private:
     static constexpr int dim = 3;
-    DevArray<T> array;
+    GpopArray<T> array;
 };
 
 struct TimePointParametersSlice {
@@ -92,42 +146,42 @@ struct TimePointParameters {
     // International Terrestrial Reference System (ITRS) to Geocentric Celestial Reference System
     // (GCRS) transformation matrix. The inverse transformation (GCRS to ITRS) is the transpose of
     // this matrix, since it's orthogonal.
-    DevMatrixArray<double> ITRS_to_GCRS;
-    DevArray<double> mjd;
+    GpopMatrixArray<double> ITRS_to_GCRS;
+    GpopArray<double> mjd;
 
     TimePointParameters() { }
     TimePointParameters(uint N)
-        : ITRS_to_GCRS(N)
-        , mjd(N)
     {
+        ITRS_to_GCRS.allocDev(N);
+        mjd.allocDev(N);
     }
 };
 
 struct TimePointTempParameters {
     // 4 matrices, which multiplied give the Q(t) matrix
-    DevMatrixArray<double> Q_R1;
-    DevMatrixArray<double> Q_R2;
-    DevMatrixArray<double> Q_R3;
-    DevMatrixArray<double> Q_R4;
+    GpopMatrixArray<double> Q_R1;
+    GpopMatrixArray<double> Q_R2;
+    GpopMatrixArray<double> Q_R3;
+    GpopMatrixArray<double> Q_R4;
 
     // 3 matrices, which multiplied give the W(t) matrix
-    DevMatrixArray<double> W_R1;
-    DevMatrixArray<double> W_R2;
-    DevMatrixArray<double> W_R3;
+    GpopMatrixArray<double> W_R1;
+    GpopMatrixArray<double> W_R2;
+    GpopMatrixArray<double> W_R3;
 
     // The R(t) matrix
-    DevMatrixArray<double> R;
+    GpopMatrixArray<double> R;
 
     TimePointTempParameters(uint N)
-        : Q_R1(N)
-        , Q_R2(N)
-        , Q_R3(N)
-        , Q_R4(N)
-        , W_R1(N)
-        , W_R2(N)
-        , W_R3(N)
-        , R(N)
     {
+        Q_R1.allocDev(N);
+        Q_R2.allocDev(N);
+        Q_R3.allocDev(N);
+        Q_R4.allocDev(N);
+        W_R1.allocDev(N);
+        W_R2.allocDev(N);
+        W_R3.allocDev(N);
+        R.allocDev(N);
     }
 };
 
@@ -138,10 +192,8 @@ struct NutationTerm {
 };
 
 struct NutationTables {
-    NutationTerm* j0 = nullptr;
-    NutationTerm* j1 = nullptr;
-    size_t j0_size;
-    size_t j1_size;
+    GpopArray<NutationTerm> j0;
+    GpopArray<NutationTerm> j1;
 };
 
 struct NutationDataset {
@@ -158,7 +210,7 @@ struct EOPRecord {
 };
 
 struct EOPDataset {
-    EOPRecord* records = nullptr;
+    GpopArray<EOPRecord> records;
     size_t size = 0;
 
     // Find records by MJD_UTC using binary search and perform linear interpolation.
@@ -218,15 +270,15 @@ struct EOPDataset {
 };
 
 struct LeapSecondDataset {
-    double* mjd_utc = nullptr; // Array of MJD_UTC values when leap seconds occurred
-    double* leap_seconds
-        = nullptr; // Array of cumulative leap seconds corresponding to the MJD_UTC values
+    GpopArray<double> mjd_utc; // Array of MJD_UTC values when leap seconds occurred
+    GpopArray<double>
+        leap_seconds; // Array of cumulative leap seconds corresponding to the MJD_UTC values
     size_t size; // Number of leap second entries
 
     // Finds the active leap second offset (TAI - UTC) for a given MJD
     __host__ __device__ double getLeapSeconds(double target_mjd) const
     {
-        if (size == 0 || mjd_utc == nullptr || leap_seconds == nullptr) {
+        if (size == 0 || mjd_utc.get() == nullptr || leap_seconds.get() == nullptr) {
             return 0.0;
         }
 
@@ -251,43 +303,43 @@ struct GravityDataset {
     double R; // Earth radius
 
     // Triangular tables of harmonic coefficients (of size TRIANGULAR_SIZE(N))
-    double* Cnm = nullptr;
-    double* Snm = nullptr;
-    bool* is_gfct = nullptr;
-    double* trnd_C = nullptr;
-    double* acos1_C = nullptr;
-    double* asin1_C = nullptr;
-    double* acos05_C = nullptr;
-    double* asin05_C = nullptr;
-    double* trnd_S = nullptr;
-    double* acos1_S = nullptr;
-    double* asin1_S = nullptr;
-    double* acos05_S = nullptr;
-    double* asin05_S = nullptr;
-    double* t0_mjd = nullptr;
+    GpopArray<double> Cnm;
+    GpopArray<double> Snm;
+    GpopArray<bool> is_gfct;
+    GpopArray<double> trnd_C;
+    GpopArray<double> acos1_C;
+    GpopArray<double> asin1_C;
+    GpopArray<double> acos05_C;
+    GpopArray<double> asin05_C;
+    GpopArray<double> trnd_S;
+    GpopArray<double> acos1_S;
+    GpopArray<double> asin1_S;
+    GpopArray<double> acos05_S;
+    GpopArray<double> asin05_S;
+    GpopArray<double> t0_mjd;
 
     // Sin and Cos values used for computation (eq. 3-18)
-    double* Cm_bar = nullptr; // Linear, of size numEntities * (N - 1)
-    double* Sm_bar = nullptr; // Linear, of size numEntities * (N - 1)
+    GpopArray<double> Cm_bar; // Linear, of size numEntities * (N - 1)
+    GpopArray<double> Sm_bar; // Linear, of size numEntities * (N - 1)
 
     // Tables of auxiliary coefficients
-    double* xi = nullptr; // Triangular, of size TRIANGULAR_SIZE(N)
-    double* eta = nullptr; // Triangular, of size TRIANGULAR_SIZE(N)
-    double* zeta = nullptr; // Triangular, of size TRIANGULAR_SIZE(N)
-    double* delta = nullptr; // Linear, of size N
+    GpopArray<double> xi; // Triangular, of size TRIANGULAR_SIZE(N)
+    GpopArray<double> eta; // Triangular, of size TRIANGULAR_SIZE(N)
+    GpopArray<double> zeta; // Triangular, of size TRIANGULAR_SIZE(N)
+    GpopArray<double> delta; // Linear, of size N
 
     // Values of the normalized derived Legendre functions
-    double* P_bar = nullptr; // Triangular for each entity, of size TRIANGULAR_SIZE(N) * numEntities
+    GpopArray<double> P_bar; // Triangular for each entity, of size TRIANGULAR_SIZE(N) * numEntities
 
     // Intermediate tables for calculating the acceleration (eq. 4-11, 4-12)
     // Size TRIANGULAR_SIZE(N) * numEntities
-    double* G = nullptr;
-    double* H = nullptr;
-    double* J = nullptr;
-    double* K = nullptr;
+    GpopArray<double> G;
+    GpopArray<double> H;
+    GpopArray<double> J;
+    GpopArray<double> K;
     // Size N * numEntities
-    double* G_temp = nullptr;
-    double* H_temp = nullptr;
-    double* J_temp = nullptr;
-    double* K_temp = nullptr;
+    GpopArray<double> G_temp;
+    GpopArray<double> H_temp;
+    GpopArray<double> J_temp;
+    GpopArray<double> K_temp;
 };

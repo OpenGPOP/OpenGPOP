@@ -68,7 +68,6 @@ public:
         , _dsFiles(dsFiles)
     {
     }
-    ~GravitySource() { FreeDataset(); }
 
     virtual void Initialize() override;
     virtual void ComputeAcceleration(
@@ -80,12 +79,10 @@ private:
     IFMTimePoints* _time_points;
     DatasetFilePaths& _dsFiles;
 
-    GravityDataset _dataset;
-    GravityDataset* _devDataset = nullptr;
-    void FreeDataset();
+    GpopStruct<GravityDataset> _dataset;
 
-    double* _devPositionInITRS = nullptr;
-    double* _devAccelerationInITRS = nullptr;
+    GpopArray<double> _positionInITRS;
+    GpopArray<double> _accelerationInITRS;
 
     void SumM(double* devMjd);
     void SumN();

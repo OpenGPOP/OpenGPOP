@@ -159,19 +159,15 @@ TEST(ReferenceSystemTransformationsTest, NutationLongitudeObliquity)
     RefSysTrans::ComputeFTable(t, F);
 
     double dpsi = 0, deps = 0;
-    NutationTables psi_tables
-        = DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutLon.txt");
-    dpsi += RefSysTrans::CalculateDelta(F, psi_tables.j0_size, psi_tables.j0);
-    dpsi += RefSysTrans::CalculateDelta(F, psi_tables.j1_size, psi_tables.j1) * t;
-    delete[] psi_tables.j0;
-    delete[] psi_tables.j1;
+    NutationTables psi_tables;
+    DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutLon.txt", psi_tables);
+    dpsi += RefSysTrans::CalculateDelta(F, psi_tables.j0.size(), psi_tables.j0);
+    dpsi += RefSysTrans::CalculateDelta(F, psi_tables.j1.size(), psi_tables.j1) * t;
 
-    NutationTables eps_tables
-        = DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutObl.txt");
-    deps += RefSysTrans::CalculateDelta(F, eps_tables.j0_size, eps_tables.j0);
-    deps += RefSysTrans::CalculateDelta(F, eps_tables.j1_size, eps_tables.j1) * t;
-    delete[] eps_tables.j0;
-    delete[] eps_tables.j1;
+    NutationTables eps_tables;
+    DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutObl.txt", eps_tables);
+    deps += RefSysTrans::CalculateDelta(F, eps_tables.j0.size(), eps_tables.j0);
+    deps += RefSysTrans::CalculateDelta(F, eps_tables.j1.size(), eps_tables.j1) * t;
 
     // SOFA Equivalent
     double sofa_dpsi, sofa_deps;
@@ -205,23 +201,15 @@ TEST(ReferenceSystemTransformationsTest, GAST_Calculation)
 TEST(ReferenceSystemTransformationsTest, QMatrix_PrecessionNutation)
 {
     TimePointDatasets datasets;
-    datasets.nutDataset.lon = DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutLon.txt");
-    datasets.nutDataset.obl = DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutObl.txt");
-    datasets.eopDataset = DatasetLoaders::LoadEOPData("../../data/IAU2000A_EOP.txt");
-    datasets.lsDataset = DatasetLoaders::LoadLeapSeconds("../../data/leap-seconds.list");
+    DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutLon.txt", datasets.nutDataset.lon);
+    DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutObl.txt", datasets.nutDataset.obl);
+    DatasetLoaders::LoadEOPData("../../data/IAU2000A_EOP.txt", datasets.eopDataset);
+    DatasetLoaders::LoadLeapSeconds("../../data/leap-seconds.list", datasets.lsDataset);
 
     double mjd_TT = 60000.0;
     double R1[9], R2[9], R3[9], R4[9];
     double F[14], delta_psi, eps_A;
     RefSysTrans::CreateQMatrixComponents(R1, R2, R3, R4, mjd_TT, &datasets, F, &delta_psi, &eps_A);
-
-    delete[] datasets.nutDataset.lon.j0;
-    delete[] datasets.nutDataset.lon.j1;
-    delete[] datasets.nutDataset.obl.j0;
-    delete[] datasets.nutDataset.obl.j1;
-    delete[] datasets.eopDataset.records;
-    delete[] datasets.lsDataset.leap_seconds;
-    delete[] datasets.lsDataset.mjd_utc;
 
     double R12[9], R123[9], actual_Q[9];
     MultiplyMatrix(R1, R2, R12);
@@ -335,10 +323,10 @@ TEST(ReferenceSystemTransformationsTest, FullTransformation_T2C)
     eop_record.yp = 3e-7;
 
     TimePointDatasets datasets;
-    datasets.nutDataset.lon = DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutLon.txt");
-    datasets.nutDataset.obl = DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutObl.txt");
-    datasets.eopDataset = DatasetLoaders::LoadEOPData("../../data/IAU2000A_EOP.txt");
-    datasets.lsDataset = DatasetLoaders::LoadLeapSeconds("../../data/leap-seconds.list");
+    DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutLon.txt", datasets.nutDataset.lon);
+    DatasetLoaders::LoadNutationData("../../data/IAU2000_R06_NutObl.txt", datasets.nutDataset.obl);
+    DatasetLoaders::LoadEOPData("../../data/IAU2000A_EOP.txt", datasets.eopDataset);
+    DatasetLoaders::LoadLeapSeconds("../../data/leap-seconds.list", datasets.lsDataset);
 
     double qR1[9], qR2[9], qR3[9], qR4[9];
     double F[14], delta_psi, eps_A;
@@ -350,14 +338,6 @@ TEST(ReferenceSystemTransformationsTest, FullTransformation_T2C)
 
     double wR1[9], wR2[9], wR3[9];
     RefSysTrans::CreateWMatrixComponents(wR1, wR2, wR3, mjd_TT, eop_record);
-
-    delete[] datasets.nutDataset.lon.j0;
-    delete[] datasets.nutDataset.lon.j1;
-    delete[] datasets.nutDataset.obl.j0;
-    delete[] datasets.nutDataset.obl.j1;
-    delete[] datasets.eopDataset.records;
-    delete[] datasets.lsDataset.leap_seconds;
-    delete[] datasets.lsDataset.mjd_utc;
 
     double qR12[9], qR123[9], actual_Q[9];
     MultiplyMatrix(qR1, qR2, qR12);
@@ -397,8 +377,10 @@ TEST(ReferenceSystemTransformationsTest, FullTransformation_T2C)
 
 TEST(ReferenceSystemTransformationsTest, TimeScales_UTC_to_TT_UT1)
 {
-    LeapSecondDataset lsDataset = DatasetLoaders::LoadLeapSeconds("../../data/leap-seconds.list");
-    EOPDataset eopDataset = DatasetLoaders::LoadEOPData("../../data/IAU2000A_EOP.txt");
+    LeapSecondDataset lsDataset;
+    DatasetLoaders::LoadLeapSeconds("../../data/leap-seconds.list", lsDataset);
+    EOPDataset eopDataset;
+    DatasetLoaders::LoadEOPData("../../data/IAU2000A_EOP.txt", eopDataset);
 
     // Array of MJDs representing different leap-second eras
     // The last date is far into the future and should fail if SOFA and LeapSecondDataset don't
@@ -429,8 +411,4 @@ TEST(ReferenceSystemTransformationsTest, TimeScales_UTC_to_TT_UT1)
         EXPECT_DOUBLE_EQ(actual_TT, sofa_TT);
         EXPECT_DOUBLE_EQ(actual_UT1, sofa_UT1);
     }
-
-    delete[] lsDataset.leap_seconds;
-    delete[] lsDataset.mjd_utc;
-    delete[] eopDataset.records;
 }

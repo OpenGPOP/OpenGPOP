@@ -144,13 +144,13 @@ __host__ __device__ double CalendarToMJD(int year, int mon, int day, int h, int 
 }
 
 // Converts MJD in UTC to MJD in TT
-__host__ __device__ double MJD_UTCtoTT(double mjd_UTC, LeapSecondDataset lsDataset)
+__host__ __device__ double MJD_UTCtoTT(double mjd_UTC, LeapSecondDataset& lsDataset)
 {
     return mjd_UTC + (lsDataset.getLeapSeconds(mjd_UTC) + CFMConst::TT_TAI) / 86400.0;
 }
 
 // Converts MJD in UTC to MJD in UT1
-__host__ __device__ double MJD_UTCtoUT1(double mjd_UTC, EOPRecord eop)
+__host__ __device__ double MJD_UTCtoUT1(double mjd_UTC, EOPRecord& eop)
 {
     return mjd_UTC + eop.ut1_utc / 86400.0;
 }
@@ -238,7 +238,7 @@ __host__ __device__ void ComputeFTable(double t, double* F)
 // IERS Conventions 2010 Chapter 5 - Transformation between the International Terrestrial Reference
 // System and the Geocentric Celestial Reference System (10 August 2012)
 // https://iers-conventions.obspm.fr/chapter5.php
-__host__ __device__ double CalculateDelta(double* F, int table_size, NutationTerm* terms)
+__host__ __device__ double CalculateDelta(double* F, int table_size, GpopArray<NutationTerm>& terms)
 {
     double result = 0;
     // We add from the smallest values to preserve numerical precision
@@ -311,13 +311,13 @@ __host__ __device__ void CreateQMatrixComponents(double* R1, double* R2, double*
     double delta_psi = 0, delta_eps = 0;
     ComputeFTable(t, F);
 
-    NutationTables nut_tables = datasets->nutDataset.lon;
-    delta_psi += CalculateDelta(F, nut_tables.j0_size, nut_tables.j0);
-    delta_psi += CalculateDelta(F, nut_tables.j1_size, nut_tables.j1) * t;
+    NutationTables* nut_tables = &datasets->nutDataset.lon;
+    delta_psi += CalculateDelta(F, nut_tables->j0.size(), nut_tables->j0);
+    delta_psi += CalculateDelta(F, nut_tables->j1.size(), nut_tables->j1) * t;
 
-    nut_tables = datasets->nutDataset.obl;
-    delta_eps += CalculateDelta(F, nut_tables.j0_size, nut_tables.j0);
-    delta_eps += CalculateDelta(F, nut_tables.j1_size, nut_tables.j1) * t;
+    nut_tables = &datasets->nutDataset.obl;
+    delta_eps += CalculateDelta(F, nut_tables->j0.size(), nut_tables->j0);
+    delta_eps += CalculateDelta(F, nut_tables->j1.size(), nut_tables->j1) * t;
 
     double eps_A, gamma_bar, phi_bar, psi_bar;
     CalculatePrecessionQuantities(t, eps_A, gamma_bar, phi_bar, psi_bar);

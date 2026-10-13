@@ -35,7 +35,6 @@ public:
         , _dsFiles(dsFiles)
     {
     }
-    ~FMTimePoints() { FreeDatasets(); }
 
     virtual void Initialize() override;
     virtual void CalculateParameters(int arrayLength, bool useMidpoints, int beforeEpoch) override;
@@ -48,13 +47,10 @@ private:
     TimeData _startTime;
     DatasetFilePaths& _dsFiles;
 
-    TimePointDatasets _datasets;
-    TimePointDatasets* _devDatasets = nullptr;
-    void FreeDatasets();
+    GpopStruct<TimePointDatasets> _datasets;
+    GpopStruct<TimePointParameters> _timePointParams;
 
-    DevStruct<TimePointParameters> _timePointParams;
-
-    void MultiplyMatrices(int arrayLength, DevMatrixArray<double>& A, DevMatrixArray<double>& B,
-        DevMatrixArray<double>& out);
+    void MultiplyMatrices(int arrayLength, GpopMatrixArray<double>& A, GpopMatrixArray<double>& B,
+        GpopMatrixArray<double>& out);
     void ComputeITRStoGCRS(int arrayLength, TimePointTempParameters& tempParams);
 };

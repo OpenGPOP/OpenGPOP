@@ -48,7 +48,8 @@ void GetSofaITRStoGCRS(TimeData defaultStartTime, double result[3][3])
     iauTaitt(tai1, tai2, &tt1, &tt2);
 
     // SOFA: UTC -> UT1
-    auto eop = DatasetLoaders::LoadEOPData("../../data/IAU2000A_EOP.txt");
+    EOPDataset eop;
+    DatasetLoaders::LoadEOPData("../../data/IAU2000A_EOP.txt", eop);
     auto eop_record = eop.getRecord(mjd_UTC);
     iauUtcut1(u1, u2, eop_record.ut1_utc, &ut11, &ut12);
 

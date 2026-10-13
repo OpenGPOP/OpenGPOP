@@ -27,14 +27,13 @@
 namespace DatasetLoaders {
 
 // A single function to load either the Longitude or Obliquity nutation tables
-NutationTables LoadNutationData(const std::string& filepath)
+void LoadNutationData(const std::string& filepath, NutationTables& dataset)
 {
-    NutationTables tables { };
     std::ifstream file(filepath);
 
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file " << filepath << "\n";
-        return tables;
+        return;
     }
 
     std::string line;
@@ -81,16 +80,13 @@ NutationTables LoadNutationData(const std::string& filepath)
         }
     }
 
-    tables.j0 = new NutationTerm[j0.size()];
-    tables.j1 = new NutationTerm[j1.size()];
-    std::memcpy(tables.j0, j0.data(), j0.size() * sizeof(NutationTerm));
-    std::memcpy(tables.j1, j1.data(), j1.size() * sizeof(NutationTerm));
-    tables.j0_size = j0.size();
-    tables.j1_size = j1.size();
-    return tables;
+    dataset.j0.allocHost(j0.size());
+    dataset.j1.allocHost(j1.size());
+    std::memcpy(dataset.j0.get(), j0.data(), j0.size() * sizeof(NutationTerm));
+    std::memcpy(dataset.j1.get(), j1.data(), j1.size() * sizeof(NutationTerm));
 }
 
-EOPDataset LoadEOPData(const std::string& filepath)
+void LoadEOPData(const std::string& filepath, EOPDataset& dataset)
 {
     std::ifstream file(filepath);
     if (!file.is_open()) {
@@ -116,7 +112,7 @@ EOPDataset LoadEOPData(const std::string& filepath)
         valid_line_count++;
     }
 
-    auto records = new EOPRecord[valid_line_count];
+    dataset.records.allocHost(valid_line_count);
 
     // Second pass: extract the data using fixed-width substring parsing
     file.clear();
@@ -136,16 +132,16 @@ EOPDataset LoadEOPData(const std::string& filepath)
 
         try {
             // Extract MJD_UTC (Cols 8-15 -> 0-indexed 7, length 8)
-            records[i].mjd_utc = std::stod(line.substr(7, 8));
+            dataset.records[i].mjd_utc = std::stod(line.substr(7, 8));
 
             // Extract Bull. A PM-x (Cols 19-27 -> 0-indexed 18, length 9)
-            records[i].xp = std::stod(line.substr(18, 9)) / CFMConst::ArcsPerRad;
+            dataset.records[i].xp = std::stod(line.substr(18, 9)) / CFMConst::ArcsPerRad;
 
             // Extract Bull. A PM-y (Cols 38-46 -> 0-indexed 37, length 9)
-            records[i].yp = std::stod(line.substr(37, 9)) / CFMConst::ArcsPerRad;
+            dataset.records[i].yp = std::stod(line.substr(37, 9)) / CFMConst::ArcsPerRad;
 
             // Extract Bull. A UT1-UTC (Cols 59-68 -> 0-indexed 58, length 10)
-            records[i].ut1_utc = std::stod(line.substr(58, 10));
+            dataset.records[i].ut1_utc = std::stod(line.substr(58, 10));
 
             i++;
         } catch (const std::exception& e) {
@@ -153,11 +149,10 @@ EOPDataset LoadEOPData(const std::string& filepath)
             continue;
         }
     }
-
-    return { .records = records, .size = i };
+    dataset.size = i;
 }
 
-__host__ LeapSecondDataset LoadLeapSeconds(const std::string& filepath)
+void LoadLeapSeconds(const std::string& filepath, LeapSecondDataset& dataset)
 {
     std::ifstream file(filepath);
     if (!file.is_open()) {
@@ -185,10 +180,9 @@ __host__ LeapSecondDataset LoadLeapSeconds(const std::string& filepath)
     }
 
     // Allocate arrays in the struct
-    LeapSecondDataset dataset;
     dataset.size = valid_line_count;
-    dataset.mjd_utc = new double[valid_line_count];
-    dataset.leap_seconds = new double[valid_line_count];
+    dataset.mjd_utc.allocHost(valid_line_count);
+    dataset.leap_seconds.allocHost(valid_line_count);
 
     // Second pass: Extract the data
     file.clear();
@@ -212,8 +206,6 @@ __host__ LeapSecondDataset LoadLeapSeconds(const std::string& filepath)
             i++;
         }
     }
-
-    return dataset;
 }
 
 // Helper to convert ICGEM date formats ("YYYYMMDD.hhmm" or "YYYYMMDD") to MJD
@@ -239,14 +231,13 @@ static double DateToMjd(const std::string& str)
     return RefSysTrans::CalendarToMJD(year, mon, day, hour, min, 0.0);
 }
 
-__host__ GravityDataset LoadGravityModel(const std::string& filepath)
+void LoadGravityModel(const std::string& filepath, GravityDataset& dataset)
 {
     std::ifstream file(filepath);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open gravity model file: " + filepath);
     }
 
-    GravityDataset dataset;
     std::string line;
     bool endOfHeadFound = false;
 
@@ -278,21 +269,21 @@ __host__ GravityDataset LoadGravityModel(const std::string& filepath)
 
     // 2. Allocate Arrays
     size_t totalElements = TRI_SIZE(dataset.N);
-
-    dataset.Cnm = new double[totalElements] { 0.0 };
-    dataset.Snm = new double[totalElements] { 0.0 };
-    dataset.is_gfct = new bool[totalElements] { false };
-    dataset.trnd_C = new double[totalElements] { 0.0 };
-    dataset.acos1_C = new double[totalElements] { 0.0 };
-    dataset.asin1_C = new double[totalElements] { 0.0 };
-    dataset.acos05_C = new double[totalElements] { 0.0 };
-    dataset.asin05_C = new double[totalElements] { 0.0 };
-    dataset.trnd_S = new double[totalElements] { 0.0 };
-    dataset.acos1_S = new double[totalElements] { 0.0 };
-    dataset.asin1_S = new double[totalElements] { 0.0 };
-    dataset.acos05_S = new double[totalElements] { 0.0 };
-    dataset.asin05_S = new double[totalElements] { 0.0 };
-    dataset.t0_mjd = new double[totalElements] { 0.0 };
+    dataset.Cnm.allocHost(totalElements);
+    dataset.Cnm.allocHost(totalElements);
+    dataset.Snm.allocHost(totalElements);
+    dataset.is_gfct.allocHost(totalElements);
+    dataset.trnd_C.allocHost(totalElements);
+    dataset.acos1_C.allocHost(totalElements);
+    dataset.asin1_C.allocHost(totalElements);
+    dataset.acos05_C.allocHost(totalElements);
+    dataset.asin05_C.allocHost(totalElements);
+    dataset.trnd_S.allocHost(totalElements);
+    dataset.acos1_S.allocHost(totalElements);
+    dataset.asin1_S.allocHost(totalElements);
+    dataset.acos05_S.allocHost(totalElements);
+    dataset.asin05_S.allocHost(totalElements);
+    dataset.t0_mjd.allocHost(totalElements);
 
     // 3. Parse Data Lines
     bool firstDataLine = true;
@@ -380,7 +371,5 @@ __host__ GravityDataset LoadGravityModel(const std::string& filepath)
             }
         }
     }
-
-    return dataset;
 }
 }

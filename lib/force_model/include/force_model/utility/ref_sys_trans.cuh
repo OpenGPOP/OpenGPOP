@@ -39,10 +39,10 @@ __host__ __device__ double GAST(
 __host__ __device__ double CalendarToMJD(int year, int mon, int day, int h, int min, double sec);
 
 // Converts MJD in UTC to MJD in TT
-__host__ __device__ double MJD_UTCtoTT(double mjd_UTC, LeapSecondDataset lsDataset);
+__host__ __device__ double MJD_UTCtoTT(double mjd_UTC, LeapSecondDataset& lsDataset);
 
 // Converts MJD in UTC to MJD in UT1
-__host__ __device__ double MJD_UTCtoUT1(double mjd_UTC, EOPRecord eop);
+__host__ __device__ double MJD_UTCtoUT1(double mjd_UTC, EOPRecord& eop);
 
 // __host__ __device__ double MeanObliquity(double mjd_TT);
 
@@ -60,7 +60,8 @@ __host__ __device__ void ComputeFTable(double t, double* F);
 // IERS Conventions 2010 Chapter 5 - Transformation between the International Terrestrial Reference
 // System and the Geocentric Celestial Reference System (10 August 2012)
 // https://iers-conventions.obspm.fr/chapter5.php
-__host__ __device__ double CalculateDelta(double* F, int table_size, NutationTerm* terms);
+__host__ __device__ double CalculateDelta(
+    double* F, int table_size, GpopArray<NutationTerm>& terms);
 
 // Creates four rotation matrices, as per the IAU 2006/2000A precession-nutation model, which
 // multiplied produce the Q(t) matrix, accounting for bias, precession and nutation. It uses the

@@ -52,14 +52,14 @@ __global__ void TimePointParamsKernel(TimePointDatasets* datasets,
     double mjd_UT1 = RefSysTrans::MJD_UTCtoUT1(mjd_UTC, eop_record);
     double mjd_TT = RefSysTrans::MJD_UTCtoTT(mjd_UTC, datasets->lsDataset);
 
-    double* Q_R1 = &tempParams->Q_R1[tIdx];
-    double* Q_R2 = &tempParams->Q_R2[tIdx];
-    double* Q_R3 = &tempParams->Q_R3[tIdx];
-    double* Q_R4 = &tempParams->Q_R4[tIdx];
-    double* W_R1 = &tempParams->W_R1[tIdx];
-    double* W_R2 = &tempParams->W_R2[tIdx];
-    double* W_R3 = &tempParams->W_R3[tIdx];
-    double* R = &tempParams->R[tIdx];
+    double* Q_R1 = tempParams->Q_R1.at(tIdx);
+    double* Q_R2 = tempParams->Q_R2.at(tIdx);
+    double* Q_R3 = tempParams->Q_R3.at(tIdx);
+    double* Q_R4 = tempParams->Q_R4.at(tIdx);
+    double* W_R1 = tempParams->W_R1.at(tIdx);
+    double* W_R2 = tempParams->W_R2.at(tIdx);
+    double* W_R3 = tempParams->W_R3.at(tIdx);
+    double* R = tempParams->R.at(tIdx);
 
     double F[14];
     double delta_psi, eps_A;
@@ -74,78 +74,51 @@ void FMTimePoints::Initialize()
 {
     // Read datasets and place them in device memory
     // Nutation in longitude
-    auto nutLon = DatasetLoaders::LoadNutationData(_dsFiles.nutationLon);
-    _datasets.nutDataset.lon = nutLon; // Create a shallow copy of non-array parameters
-    gpuErrchk(cudaMalloc(&_datasets.nutDataset.lon.j0, nutLon.j0_size * sizeof(NutationTerm)));
-    gpuErrchk(cudaMalloc(&_datasets.nutDataset.lon.j1, nutLon.j1_size * sizeof(NutationTerm)));
-    gpuErrchk(cudaMemcpy(_datasets.nutDataset.lon.j0, nutLon.j0,
-        nutLon.j0_size * sizeof(NutationTerm), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(_datasets.nutDataset.lon.j1, nutLon.j1,
-        nutLon.j1_size * sizeof(NutationTerm), cudaMemcpyHostToDevice));
-    delete[] nutLon.j0;
-    delete[] nutLon.j1;
+    DatasetLoaders::LoadNutationData(_dsFiles.nutationLon, _datasets.structure.nutDataset.lon);
+    _datasets.structure.nutDataset.lon.j0.moveToDev();
+    _datasets.structure.nutDataset.lon.j1.moveToDev();
 
     // Nutation in obliquity
-    auto nutObl = DatasetLoaders::LoadNutationData(_dsFiles.nutationObl);
-    _datasets.nutDataset.obl = nutObl; // Create a shallow copy of non-array parameters
-    gpuErrchk(cudaMalloc(&_datasets.nutDataset.obl.j0, nutObl.j0_size * sizeof(NutationTerm)));
-    gpuErrchk(cudaMalloc(&_datasets.nutDataset.obl.j1, nutObl.j1_size * sizeof(NutationTerm)));
-    gpuErrchk(cudaMemcpy(_datasets.nutDataset.obl.j0, nutObl.j0,
-        nutObl.j0_size * sizeof(NutationTerm), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(_datasets.nutDataset.obl.j1, nutObl.j1,
-        nutObl.j1_size * sizeof(NutationTerm), cudaMemcpyHostToDevice));
-    delete[] nutObl.j0;
-    delete[] nutObl.j1;
+    DatasetLoaders::LoadNutationData(_dsFiles.nutationObl, _datasets.structure.nutDataset.obl);
+    _datasets.structure.nutDataset.obl.j0.moveToDev();
+    _datasets.structure.nutDataset.obl.j1.moveToDev();
 
     // EOP
-    auto eop = DatasetLoaders::LoadEOPData(_dsFiles.eop);
-    _datasets.eopDataset = eop; // Create a shallow copy of non-array parameters
-    gpuErrchk(cudaMalloc(&_datasets.eopDataset.records, eop.size * sizeof(EOPRecord)));
-    gpuErrchk(cudaMemcpy(_datasets.eopDataset.records, eop.records, eop.size * sizeof(EOPRecord),
-        cudaMemcpyHostToDevice));
-    delete[] eop.records;
+    DatasetLoaders::LoadEOPData(_dsFiles.eop, _datasets.structure.eopDataset);
+    _datasets.structure.eopDataset.records.moveToDev();
 
     // Leap seconds
-    auto ls = DatasetLoaders::LoadLeapSeconds(_dsFiles.leapSeconds);
-    _datasets.lsDataset = ls; // Create a shallow copy of non-array parameters
-    gpuErrchk(cudaMalloc(&_datasets.lsDataset.leap_seconds, ls.size * sizeof(double)));
-    gpuErrchk(cudaMalloc(&_datasets.lsDataset.mjd_utc, ls.size * sizeof(double)));
-    gpuErrchk(cudaMemcpy(_datasets.lsDataset.leap_seconds, ls.leap_seconds,
-        ls.size * sizeof(double), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(
-        _datasets.lsDataset.mjd_utc, ls.mjd_utc, ls.size * sizeof(double), cudaMemcpyHostToDevice));
-    delete[] ls.leap_seconds;
-    delete[] ls.mjd_utc;
+    DatasetLoaders::LoadLeapSeconds(_dsFiles.leapSeconds, _datasets.structure.lsDataset);
+    _datasets.structure.lsDataset.leap_seconds.moveToDev();
+    _datasets.structure.lsDataset.mjd_utc.moveToDev();
 
-    // Allocate space for the containing structure and copy it
-    gpuErrchk(cudaMalloc(&_devDatasets, sizeof(TimePointDatasets)));
-    gpuErrchk(
-        cudaMemcpy(_devDatasets, &_datasets, sizeof(TimePointDatasets), cudaMemcpyHostToDevice));
+    _datasets.copyToDev();
 }
 
 void FMTimePoints::CalculateParameters(int arrayLength, bool useMidpoints, int beforeEpoch)
 {
     // Free potentially allocated parameters
     _timePointParams.emplace(arrayLength);
-    DevStruct<TimePointTempParameters> tempParams(arrayLength);
+    GpopStruct<TimePointTempParameters> tempParams(arrayLength);
 
     int threadsPerBlock = 256;
     int blockCount = arrayLength / threadsPerBlock + 1;
-    TimePointParamsKernel<<<blockCount, threadsPerBlock>>>(_devDatasets, tempParams.ptr, _startTime,
-        _stepSize, arrayLength, useMidpoints, beforeEpoch, _timePointParams.structure.mjd.data());
+    TimePointParamsKernel<<<blockCount, threadsPerBlock>>>(_datasets.ptr, tempParams.ptr,
+        _startTime, _stepSize, arrayLength, useMidpoints, beforeEpoch,
+        _timePointParams.structure.mjd.get());
     gpuErrchk(cudaGetLastError());
     gpuErrchk(cudaDeviceSynchronize());
 
     ComputeITRStoGCRS(arrayLength, tempParams.structure);
 }
 
-void FMTimePoints::MultiplyMatrices(int arrayLength, DevMatrixArray<double>& A,
-    DevMatrixArray<double>& B, DevMatrixArray<double>& out)
+void FMTimePoints::MultiplyMatrices(int arrayLength, GpopMatrixArray<double>& A,
+    GpopMatrixArray<double>& B, GpopMatrixArray<double>& out)
 {
     double alpha = 1.0;
     double beta = 0.0;
     cublasErrchk(cublasDgemmStridedBatched(*_cublasHandle, CUBLAS_OP_N, CUBLAS_OP_N, 3, 3, 3,
-        &alpha, A.data(), 3, 9, B.data(), 3, 9, &beta, out.data(), 3, 9, arrayLength));
+        &alpha, A.get(), 3, 9, B.get(), 3, 9, &beta, out.get(), 3, 9, arrayLength));
 }
 
 // Multiplies rotation matrices to create the final ITRS to GCRS transformation matrix (eq. 5.1)
@@ -199,24 +172,8 @@ void FMTimePoints::ComputeITRStoGCRS(int arrayLength, TimePointTempParameters& t
 
 TimePointParametersSlice FMTimePoints::GetParametersDev(int stepNum)
 {
-    return { .ITRS_to_GCRS = _timePointParams.structure.ITRS_to_GCRS.data() + stepNum * 9,
-        .mjd = _timePointParams.structure.mjd.data() + stepNum };
+    return { .ITRS_to_GCRS = _timePointParams.structure.ITRS_to_GCRS.get() + stepNum * 9,
+        .mjd = _timePointParams.structure.mjd.get() + stepNum };
 }
 
 TimeData FMTimePoints::GetStartTime() { return _startTime; }
-
-void FMTimePoints::FreeDatasets()
-{
-    CUDA_SAFE_FREE(_datasets.nutDataset.lon.j0);
-    CUDA_SAFE_FREE(_datasets.nutDataset.lon.j1);
-
-    CUDA_SAFE_FREE(_datasets.nutDataset.obl.j0);
-    CUDA_SAFE_FREE(_datasets.nutDataset.obl.j1);
-
-    CUDA_SAFE_FREE(_datasets.eopDataset.records);
-
-    CUDA_SAFE_FREE(_datasets.lsDataset.leap_seconds);
-    CUDA_SAFE_FREE(_datasets.lsDataset.mjd_utc);
-
-    CUDA_SAFE_FREE(_devDatasets);
-}

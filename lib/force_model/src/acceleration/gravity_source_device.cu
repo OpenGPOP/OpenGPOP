@@ -29,9 +29,9 @@ __global__ void ComputeAuxiliaryCoefficientsKernel(GravityDataset* dataset)
         return;
     double n = i, m = j;
 
-    double* xi = dataset->xi;
-    double* eta = dataset->eta;
-    double* zeta = dataset->zeta;
+    double* xi = dataset->xi.get();
+    double* eta = dataset->eta.get();
+    double* zeta = dataset->zeta.get();
 
     // eq. 7-10
     xi[tIdx] = sqrt((2.0 * n - 1.0) * (2.0 * n + 1.0) / ((n - m) * (n + m)));
@@ -54,7 +54,7 @@ __global__ void PopulatePbarDiagonalKernel(GravityDataset* dataset, int numEntit
         return;
 
     auto N = dataset->N;
-    auto P_bar = dataset->P_bar + (tIdx + 1) * TRI_SIZE(N);
+    auto P_bar = dataset->P_bar.get() + (tIdx + 1) * TRI_SIZE(N);
     for (int i = 0; i < N; i++) {
         auto index = TRI_C2IDX(i, i);
         P_bar[index] = dataset->P_bar[index];
@@ -78,9 +78,9 @@ __global__ void ComputePbarKernel(GravityDataset* dataset, double* positions, in
     double r = sqrt(x * x + y * y + z * z);
     double eps = z / r; // eq. 3-3
 
-    auto P_bar = dataset->P_bar + TRI_SIZE(N) * entity;
-    auto xi = dataset->xi;
-    auto eta = dataset->eta;
+    auto P_bar = dataset->P_bar.get() + TRI_SIZE(N) * entity;
+    auto xi = dataset->xi.get();
+    auto eta = dataset->eta.get();
     auto n = m + 1;
 
     // Calculate the term below the diagonal
@@ -108,8 +108,8 @@ __global__ void ComputeCmSmKernel(GravityDataset* dataset, double* positions, in
     // Compute Cm_bar and Sm_bar recursively to avoid singularity at pole (eq. 3-18)
     // TODO: Optimize to avoid global memory accesses every time
     auto N = dataset->N;
-    double* Cm = dataset->Cm_bar + tIdx * N;
-    double* Sm = dataset->Sm_bar + tIdx * N;
+    double* Cm = dataset->Cm_bar.get() + tIdx * N;
+    double* Sm = dataset->Sm_bar.get() + tIdx * N;
     Cm[0] = 1;
     Sm[0] = 0;
     Cm[1] = x / r;
@@ -159,7 +159,7 @@ __global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities, doub
     auto [n, m] = TRI_IDX2C(nm_index);
     auto n0_index = TRI_C2IDX(n, 0);
 
-    auto P_bar = dataset->P_bar + TRI_SIZE(N) * entity;
+    auto P_bar = dataset->P_bar.get() + TRI_SIZE(N) * entity;
     double Pnm = P_bar[nm_index];
     double Pnm1;
     if (n > m)
@@ -192,8 +192,8 @@ __global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities, doub
         return;
     }
 
-    auto Cm_arr = dataset->Cm_bar + entity * N;
-    auto Sm_arr = dataset->Sm_bar + entity * N;
+    auto Cm_arr = dataset->Cm_bar.get() + entity * N;
+    auto Sm_arr = dataset->Sm_bar.get() + entity * N;
     double Cm = Cm_arr[m];
     double Sm = Sm_arr[m];
     double Cm1 = Cm_arr[m - 1];
@@ -215,10 +215,10 @@ __global__ void PrepareNSumKernel(GravityDataset* dataset, double* positions, in
 
     auto N = dataset->N;
     auto offset = tIdx * N;
-    auto G_temp = dataset->G_temp + offset;
-    auto H_temp = dataset->H_temp + offset;
-    auto K_temp = dataset->K_temp + offset;
-    auto J_temp = dataset->J_temp + offset;
+    auto G_temp = dataset->G_temp.get() + offset;
+    auto H_temp = dataset->H_temp.get() + offset;
+    auto K_temp = dataset->K_temp.get() + offset;
+    auto J_temp = dataset->J_temp.get() + offset;
 
     auto pos = positions + tIdx * 3;
     double x = pos[0], y = pos[1], z = pos[2];
