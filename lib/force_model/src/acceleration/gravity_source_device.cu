@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "force_model/acceleration/gravity_source.cuh"
+#include "force_model/constants.cuh"
 #include "gpu_utils/gpu_utils.cuh"
 
 __global__ void ComputeAuxiliaryCoefficientsKernel(GravityDataset* dataset)
@@ -119,7 +120,33 @@ __global__ void ComputeCmSmKernel(GravityDataset* dataset, double* positions, in
     }
 }
 
-__global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities)
+__device__ double GetCSCoefficient(GravityDataset* dataset, bool C, int index, double* mjd)
+{
+    double val = C ? dataset->Cnm[index] : dataset->Snm[index];
+
+    if (!dataset->is_gfct[index])
+        return val;
+
+    double dt = (*mjd - dataset->t0_mjd[index]) / 365.25;
+    double cos1 = cos(2.0 * CFMConst::PI * dt);
+    double sin1 = sin(2.0 * CFMConst::PI * dt);
+    double cos05 = cos(4.0 * CFMConst::PI * dt);
+    double sin05 = sin(4.0 * CFMConst::PI * dt);
+
+    if (C) {
+        val += dataset->trnd_C[index] * dt;
+        val += dataset->acos1_C[index] * cos1 + dataset->asin1_C[index] * sin1;
+        val += dataset->acos05_C[index] * cos05 + dataset->asin05_C[index] * sin05;
+    } else {
+        val += dataset->trnd_S[index] * dt;
+        val += dataset->acos1_S[index] * cos1 + dataset->asin1_S[index] * sin1;
+        val += dataset->acos05_S[index] * cos05 + dataset->asin05_S[index] * sin05;
+    }
+
+    return val;
+}
+
+__global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities, double* mjd)
 {
     auto tIdx = blockIdx.x * blockDim.x + threadIdx.x;
     auto N = dataset->N;
@@ -140,8 +167,8 @@ __global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities)
     else
         Pnm1 = 0;
 
-    double Cnm = dataset->Cnm[nm_index];
-    double Snm = dataset->Snm[nm_index];
+    double Cnm = GetCSCoefficient(dataset, true, nm_index, mjd);
+    double Snm = GetCSCoefficient(dataset, false, nm_index, mjd);
 
     if (n < 2) {
         dataset->J[tIdx] = 0;
@@ -157,7 +184,7 @@ __global__ void PrepareMSumKernel(GravityDataset* dataset, int numEntities)
         // for simplicity's sake, we made all these arrays the same size
         double Pn0 = P_bar[n0_index];
         double Pn1 = P_bar[TRI_C2IDX(n, 1)];
-        double Cn0 = dataset->Cnm[n0_index];
+        double Cn0 = GetCSCoefficient(dataset, true, n0_index, mjd);
         dataset->J[tIdx] = 0;
         dataset->K[tIdx] = 0;
         dataset->G[tIdx] = Cn0 * (n + 1) * Pn0;

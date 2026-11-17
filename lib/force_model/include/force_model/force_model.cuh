@@ -33,10 +33,10 @@ public:
         , _params(params)
         , _numEntities(numEntities)
         , _stepSize(stepSize)
-        , _timePoints(handle, stepSize, params->StartTimeUTC)
+        , _timePoints(handle, stepSize, params->StartTimeUTC, params->dsFiles)
     {
         _accelerationSources.push_back(
-            std::make_unique<GravitySource>(handle, numEntities, &_timePoints));
+            std::make_unique<GravitySource>(handle, numEntities, &_timePoints, params->dsFiles));
     };
     ~ForceModel();
 

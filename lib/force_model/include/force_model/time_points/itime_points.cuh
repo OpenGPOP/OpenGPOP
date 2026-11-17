@@ -26,4 +26,6 @@ struct IFMTimePoints {
 
     // Returns a structure of device pointers shifted to the requested position
     virtual TimePointParameters GetParametersDev(int stepNum) = 0;
+
+    virtual TimeData GetStartTime() = 0;
 };

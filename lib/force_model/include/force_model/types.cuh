@@ -166,6 +166,18 @@ struct GravityDataset {
     // Triangular tables of harmonic coefficients (of size TRIANGULAR_SIZE(N))
     double* Cnm = nullptr;
     double* Snm = nullptr;
+    bool* is_gfct = nullptr;
+    double* trnd_C = nullptr;
+    double* acos1_C = nullptr;
+    double* asin1_C = nullptr;
+    double* acos05_C = nullptr;
+    double* asin05_C = nullptr;
+    double* trnd_S = nullptr;
+    double* acos1_S = nullptr;
+    double* asin1_S = nullptr;
+    double* acos05_S = nullptr;
+    double* asin05_S = nullptr;
+    double* t0_mjd = nullptr;
 
     // Sin and Cos values used for computation (eq. 3-18)
     double* Cm_bar = nullptr; // Linear, of size numEntities * (N - 1)

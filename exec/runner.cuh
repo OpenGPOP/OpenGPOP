@@ -46,6 +46,7 @@ struct ClosestApproachOutput {
     long calculationTimeSeconds;
 };
 
-PropagationOutput propagate(const PropagationInput& input);
+PropagationOutput propagate(const PropagationInput& input, const DatasetFilePaths& dsFiles);
 
-ClosestApproachOutput closestApproach(const ClosestApproachInput& input);
+ClosestApproachOutput closestApproach(
+    const ClosestApproachInput& input, const DatasetFilePaths& dsFiles);

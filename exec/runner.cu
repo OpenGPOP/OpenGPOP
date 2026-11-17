@@ -4,18 +4,19 @@
 #include "force_model/force_model.cuh"
 #include "gpu_propagator/gpu_propagator.cuh"
 
-#include <cuda/std/detail/libcxx/include/chrono>
+#include <chrono>
 #include <indicators/block_progress_bar.hpp>
 #include <indicators/cursor_control.hpp>
 
-PropagationOutput propagate(const PropagationInput& input)
+PropagationOutput propagate(const PropagationInput& input, const DatasetFilePaths& dsFiles)
 {
     int numStepsToFirst = input.propagationSeconds / IdealStepSize;
     double stepSize = input.propagationSeconds / static_cast<double>(numStepsToFirst);
     int totalSteps = numStepsToFirst;
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    FullPerturbationParameters parameters { input.propagationStart };
+    FullPerturbationParameters parameters { .StartTimeUTC = input.propagationStart,
+        .dsFiles = dsFiles };
 
     cublasHandle_t handle;
     cublasErrchk(cublasCreate(&handle));
@@ -69,7 +70,8 @@ PropagationOutput propagate(const PropagationInput& input)
         positionsEnd, velocitiesEnd, elapsed };
 }
 
-ClosestApproachOutput closestApproach(const ClosestApproachInput& input)
+ClosestApproachOutput closestApproach(
+    const ClosestApproachInput& input, const DatasetFilePaths& dsFiles)
 {
     int numStepsToFirst = input.propagationSeconds / IdealStepSize;
     double stepSize = input.propagationSeconds / static_cast<double>(numStepsToFirst);
@@ -78,7 +80,8 @@ ClosestApproachOutput closestApproach(const ClosestApproachInput& input)
     cublasHandle_t handle;
     cublasErrchk(cublasCreate(&handle));
 
-    FullPerturbationParameters params { .StartTimeUTC = input.propagationStart };
+    FullPerturbationParameters params { .StartTimeUTC = input.propagationStart,
+        .dsFiles = dsFiles };
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     ForceModel forceModel(&handle, input.positions.size(), stepSize, &params);
