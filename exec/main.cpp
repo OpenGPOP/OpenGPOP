@@ -30,7 +30,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TimeData, Year, Month, Day, Hour, Min, Sec);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
     PropagationInput, propagationStart, propagationSeconds, positions, velocities);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(PropagationOutput, propagationStart,
-    propagationSeconds, positionsStart, velocitiesStart, positionsEnd, velocitiesEnd);
+    propagationSeconds, positionsStart, velocitiesStart, positionsEnd, velocitiesEnd, calculationTimeSeconds);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ClosestApproachRecord, objectIndex1, objectIndex2, distance,
     time, positionAx, positionAy, positionAz, positionBx, positionBy, positionBz);

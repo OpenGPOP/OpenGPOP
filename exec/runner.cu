@@ -4,7 +4,7 @@
 #include "force_model/force_model.cuh"
 #include "gpu_propagator/gpu_propagator.cuh"
 
-#include <cuda/std/detail/libcxx/include/chrono>
+#include <chrono>
 #include <indicators/block_progress_bar.hpp>
 #include <indicators/cursor_control.hpp>
 
